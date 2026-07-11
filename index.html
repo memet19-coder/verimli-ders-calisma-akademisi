@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#5267e8">
+  <meta name="description" content="Ortaokul öğrencileri için verimli ders çalışma becerileri uygulaması.">
+  <title>Verimli Ders Çalışma Akademisi</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a class="skip-link" href="#main-content">İçeriğe geç</a>
+
+  <section id="access-gateway" class="access-gateway" aria-labelledby="gateway-title">
+    <div class="gateway-decoration" aria-hidden="true"><span>📘</span><span>✦</span><span>🎯</span></div>
+    <div class="gateway-card">
+      <div class="gateway-story">
+        <div class="gateway-brand"><span class="brand-mark">V</span><div><strong>Verimli Ders</strong><small>Çalışma Akademisi</small></div></div>
+        <div><span class="gateway-kicker">DİJİTAL ÖĞRENME ALANI</span><h1 id="gateway-title">Çalışma becerilerini<br><em>adım adım</em> güçlendir.</h1><p>Modülleri tamamla, haftanı planla ve gelişimini öğretmeninle birlikte takip et.</p></div>
+        <div class="gateway-features"><span>✓ Güvenli öğrenci kodu</span><span>✓ Otomatik ilerleme kaydı</span><span>✓ Öğretmen geri bildirimi</span></div>
+      </div>
+      <div class="gateway-login">
+        <div class="role-tabs" role="tablist" aria-label="Giriş türü">
+          <button class="role-tab active" type="button" role="tab" aria-selected="true" data-auth-tab="student">🎒 Öğrenci Girişi</button>
+          <button class="role-tab" type="button" role="tab" aria-selected="false" data-auth-tab="teacher">🧑‍🏫 Öğretmen Girişi</button>
+        </div>
+        <div id="cloud-setup-message" class="cloud-setup-message" hidden></div>
+        <form id="student-login-form" class="login-form" novalidate>
+          <div class="login-heading"><span>Tekrar hoş geldin 👋</span><h2>Akademine giriş yap</h2><p>Öğretmeninin verdiği sınıf ve öğrenci kodunu kullan.</p></div>
+          <div class="field-group"><label for="login-student-name">Adın ve soyadın</label><input id="login-student-name" name="studentName" maxlength="60" autocomplete="name" placeholder="Örnek: Elif Yılmaz" required></div>
+          <div class="field-row"><div class="field-group"><label for="login-class-code">Sınıf kodu</label><input id="login-class-code" name="classCode" maxlength="20" autocomplete="off" placeholder="Örnek: TURKCE7A" required></div><div class="field-group"><label for="login-student-code">Öğrenci kodu</label><input id="login-student-code" name="studentCode" maxlength="20" autocomplete="off" placeholder="Örnek: ELIF-4821" required></div></div>
+          <div id="student-login-message" class="login-message" role="alert"></div>
+          <button class="button primary login-submit" type="submit">Akademime Giriş Yap <span>→</span></button>
+          <small class="privacy-note">🔒 Bilgilerin yalnızca öğretmeninle paylaşılır.</small>
+        </form>
+        <form id="teacher-login-form" class="login-form" hidden novalidate>
+          <div class="login-heading"><span>Öğretmen alanı</span><h2>Sınıfını görüntüle</h2><p>Öğrenci ilerlemelerini ve çalışmalarını tek panelden incele.</p></div>
+          <div class="field-group"><label for="teacher-email">E-posta adresi</label><input id="teacher-email" name="email" type="email" autocomplete="username" placeholder="ogretmen@okul.com" required></div>
+          <div class="field-group"><label for="teacher-password">Şifre</label><input id="teacher-password" name="password" type="password" autocomplete="current-password" placeholder="Şifreniz" required></div>
+          <div id="teacher-login-message" class="login-message" role="alert"></div>
+          <button class="button primary login-submit" type="submit">Öğretmen Panelini Aç <span>→</span></button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <div class="app-shell is-hidden" id="student-app">
+    <aside class="sidebar" aria-label="Ana menü">
+      <button class="brand" type="button" data-page="home" aria-label="Ana sayfaya git">
+        <span class="brand-mark" aria-hidden="true">V</span>
+        <span>
+          <strong>Verimli Ders</strong>
+          <small>Çalışma Akademisi</small>
+        </span>
+      </button>
+
+      <nav class="main-nav">
+        <button class="nav-item active" type="button" data-page="home"><span>🏠</span><b>Ana Sayfa</b></button>
+        <button class="nav-item" type="button" data-page="modules"><span>📚</span><b>Modüller</b></button>
+        <button class="nav-item" type="button" data-page="plan"><span>🗓️</span><b>Planım</b></button>
+        <button class="nav-item" type="button" data-page="report"><span>📈</span><b>Raporum</b></button>
+        <button class="nav-item" type="button" data-page="badges"><span>🏅</span><b>Rozetler</b></button>
+        <button class="nav-item" type="button" data-page="tips"><span>💡</span><b>Tavsiyeler</b></button>
+        <button class="nav-item" type="button" data-page="settings"><span>⚙️</span><b>Ayarlar</b></button>
+      </nav>
+
+      <div class="sidebar-boost">
+        <span aria-hidden="true">🌱</span>
+        <strong>Küçük adımlar, büyük gelişim!</strong>
+        <p>Bugün ayırdığın birkaç dakika bile değerlidir.</p>
+      </div>
+    </aside>
+
+    <div class="app-main">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">VERİMLİ DERS ÇALIŞMA AKADEMİSİ</p>
+          <h1 id="page-title">Ana Sayfa</h1>
+        </div>
+        <div class="topbar-actions">
+          <span id="cloud-sync-status" class="cloud-sync-status"><i></i><span>Çevrim içi</span></span>
+          <button class="student-chip" type="button" data-page="settings" aria-label="Öğrenci ayarlarını aç"><span class="avatar" aria-hidden="true">👋</span><span><small>Hoş geldin</small><strong id="student-chip-name">Öğrenci</strong></span></button>
+          <button class="icon-button" type="button" data-action="student-logout" aria-label="Öğrenci oturumundan çık" title="Çıkış yap">↪</button>
+        </div>
+      </header>
+
+      <main id="main-content" tabindex="-1"></main>
+      <footer class="footer">Kendinle yarış, dünkü halinden bir adım ileri git. 🌟</footer>
+    </div>
+  </div>
+
+  <section id="teacher-app" class="teacher-app is-hidden">
+    <header class="teacher-topbar">
+      <div class="gateway-brand"><span class="brand-mark">V</span><div><strong>Verimli Ders Akademisi</strong><small>Öğretmen Yönetim Paneli</small></div></div>
+      <div class="teacher-topbar-actions"><span class="cloud-sync-status online"><i></i><span>Canlı veriler</span></span><button class="button ghost small" type="button" data-action="teacher-logout">Çıkış Yap</button></div>
+    </header>
+    <main id="teacher-content" class="teacher-content" tabindex="-1"></main>
+  </section>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <nav class="mobile-nav is-hidden" id="student-mobile-nav" aria-label="Mobil menü">
+    <button class="nav-item active" type="button" data-page="home"><span>🏠</span><b>Ana</b></button>
+    <button class="nav-item" type="button" data-page="modules"><span>📚</span><b>Modüller</b></button>
+    <button class="nav-item" type="button" data-page="plan"><span>🗓️</span><b>Planım</b></button>
+    <button class="nav-item" type="button" data-page="report"><span>📈</span><b>Raporum</b></button>
+    <button class="nav-item" type="button" data-page="settings"><span>⚙️</span><b>Ayarlar</b></button>
+  </nav>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="script.js"></script>
+</body>
+</html>
