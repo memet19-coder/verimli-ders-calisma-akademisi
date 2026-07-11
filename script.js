@@ -31,6 +31,7 @@ const STORAGE_KEYS = {
   completed: "vdca_module_completed",
   plan: "vdca_weekly_plan",
   quizzes: "vdca_module_quizzes",
+  activities: "vdca_module_activities",
   cloudSession: "vdca_cloud_session"
 };
 
@@ -370,6 +371,19 @@ const MODULE_EXTRAS = {
   }
 };
 
+const ACTIVITY_LABS = {
+  1: { icon: "🗂️", title: "Planlama Karar Laboratuvarı", instruction: "Her görevi en uygun planlama kararına yerleştir.", categories: ["Önce yap", "Planla", "Küçült"], items: [["Yarın teslim edilecek Türkçe ödevi", "Önce yap", "Yakın tarihli ve önemli görev önceliklidir."], ["Bir ay sonraki proje için kaynak bulmak", "Planla", "Acil değil ama takvime eklenirse unutulmaz."], ["Bir günde 200 soru çözmek", "Küçült", "Büyük görevler uygulanabilir parçalara bölünmelidir."]], mission: "Bu hafta planındaki en az bir küçük görevi zamanında tamamla." },
+  2: { icon: "🛡️", title: "Dikkat Kalkanı Atölyesi", instruction: "Her duruma en uygun dikkat koruma kararını ver.", categories: ["Uzaklaştır", "Azalt", "Sorun değil"], items: [["Masada bildirimleri açık telefon", "Uzaklaştır", "Telefonu görüş alanından çıkarmak güçlü bir önlemdir."], ["Yan odadan gelen konuşma sesi", "Azalt", "Kapıyı kapatmak veya sakin alan seçmek yardımcı olabilir."], ["Çözeceğin test ve kalemin masada olması", "Sorun değil", "Görev için gerekli malzemeler dikkat dağıtıcı değildir."]], mission: "Dört çalışma oturumunda telefonunu görüş alanından çıkar." },
+  3: { icon: "🧠", title: "Tekrar Dedektifi", instruction: "Tekrar yöntemlerinin etkili olup olmadığına karar ver.", categories: ["Etkili", "Geliştir"], items: [["Notu kapatıp konuyu kendi cümlelerinle anlatmak", "Etkili", "Hatırlamaya çalışmak öğrenmeyi güçlendirir."], ["Aynı sayfayı arka arkaya beş kez okumak", "Geliştir", "Sadece okumak yerine kendini sınamayı eklemelisin."], ["Konuyu farklı günlerde kısa sürelerle tekrar etmek", "Etkili", "Aralıklı tekrar unutmayı azaltır."]], mission: "Bir konuyu ertesi gün, üçüncü gün ve yedinci gün tekrar et." },
+  4: { icon: "✍️", title: "Not Kalitesi Kontrolü", instruction: "Not parçalarını değerlendir.", categories: ["İyi not", "Gereksiz", "Eksik"], items: [["Fiil: İş, oluş veya hareket bildiren sözcük", "İyi not", "Kısa tanım ve anahtar kavram içeriyor."], ["Kitaptaki paragrafın tamamını aynen yazmak", "Gereksiz", "Seçmeden kopyalamak anlamayı zorlaştırır."], ["Yalnızca konu başlığını yazmak", "Eksik", "Başlık tek başına tekrar için yeterli değildir."]], mission: "Bir ders notunu anahtar kelime, açıklama ve örnekle yeniden düzenle." },
+  5: { icon: "🔎", title: "Metin Haritası", instruction: "“Düzenli uyku öğrenmeyi destekler. Öğrenciler uyku saatlerine dikkat etmelidir.” metnindeki parçaları sınıflandır.", categories: ["Konu", "Ana fikir", "Ayrıntı"], items: [["Uyku ve öğrenme", "Konu", "Metnin genel olarak neden söz ettiğini gösterir."], ["Düzenli uyku öğrenmeyi desteklediği için uyku düzenine dikkat edilmelidir.", "Ana fikir", "Metnin temel mesajıdır."], ["Öğrencilerin uyku saatleri", "Ayrıntı", "Metinde geçen özel bir noktadır."]], mission: "Üç kısa metinde konu, ana fikir ve önemli ayrıntıyı belirle." },
+  6: { icon: "🧭", title: "Hata Türü Avı", instruction: "Her yanlışın olası nedenini bul.", categories: ["Konu", "Dikkat", "İşlem", "Zaman"], items: [["Formülü hiç hatırlamadım.", "Konu", "Bilgi veya kavram eksikliği bulunuyor."], ["Soru “değildir” diyordu, fark etmedim.", "Dikkat", "Soru kökü yeterince dikkatli okunmamış."], ["7 × 8 işlemini 54 buldum.", "İşlem", "Çözüm bilinse de hesaplama hatası yapılmış."]], mission: "Beş yanlışını nedenlerine göre işaretle ve çözüm yaz." },
+  7: { icon: "📊", title: "Deneme Karar Merkezi", instruction: "Sonuçlardan çıkarılabilecek en doğru kararı seç.", categories: ["Güçlü yön", "Öncelik", "İzle"], items: [["Türkçe 18 doğru, 2 yanlış", "Güçlü yön", "Yüksek doğruluk sürdürülebilecek bir güçlü yöndür."], ["Matematikte aynı konudan 5 yanlış", "Öncelik", "Tekrarlanan konu eksiği öncelik olmalıdır."], ["Bir soruda işlem hatası", "İzle", "Tek hata hemen büyük bir konu eksiği anlamına gelmez."]], mission: "Son denemendeki yanlışları konu, dikkat ve zaman başlıklarıyla incele." },
+  8: { icon: "🌤️", title: "Düşünce Dönüştürücü", instruction: "Sınav anındaki düşünceleri etkilerine göre ayır.", categories: ["Destekler", "Kaygıyı artırır"], items: [["Heyecanlı olsam da bildiğim sorulardan başlayabilirim.", "Destekler", "Kontrol edebileceğin bir adıma odaklanır."], ["Bir soruyu yapamazsam sınav tamamen kötü geçer.", "Kaygıyı artırır", "Tek bir durumu bütün sınava geneller."], ["Nefesimi yavaşlatıp soruyu yeniden okuyabilirim.", "Destekler", "Uygulanabilir bir sakinleşme adımı içerir."]], mission: "Deneme öncesinde yavaş nefes al ve destekleyici cümleni kullan." },
+  9: { icon: "⏳", title: "Zaman Bütçesi", instruction: "Günlük etkinlikleri doğru zaman grubuna yerleştir.", categories: ["Zorunlu", "Ders", "Dinlenme", "Eğlence"], items: [["Okul ve yemek saatleri", "Zorunlu", "Önceden belli olan temel zamanlardır."], ["25 dakika problem çözme", "Ders", "Açık görev ve süre içeren çalışma zamanıdır."], ["10 dakika yürüyüş", "Dinlenme", "Zihnin ve bedenin toparlanmasına yardım eder."]], mission: "Üç gün boyunca ders, dinlenme ve eğlence sürelerini not et." },
+  10: { icon: "🏆", title: "Hedef Netleştirici", instruction: "Hedeflerin ölçülebilir olup olmadığına karar ver.", categories: ["Net hedef", "Belirsiz", "Küçült"], items: [["Bu hafta dört gün 15 paragraf sorusu çözeceğim.", "Net hedef", "Sayı ve zaman açıkça belirtilmiş."], ["Derslerimde daha iyi olacağım.", "Belirsiz", "Neyin ve nasıl ölçüleceği belli değil."], ["Bu ay bütün eksiklerimi tamamen bitireceğim.", "Küçült", "Hedef çok geniş; konu ve günlük adım seçilmelidir."]], mission: "Bir haftalık hedef belirle ve hafta sonunda sonucunu değerlendir." }
+};
+
 const BADGES = [
   ["İlk Adım", "İlk modülünü tamamladığında açılır.", "🌱", completed => completed.length >= 1],
   ["Plan Ustası", "Plan yapma modülünü tamamladığında açılır.", "🗓️", completed => completed.includes(1)],
@@ -393,7 +407,8 @@ const state = {
   checks: loadData(STORAGE_KEYS.checks, {}),
   completed: loadData(STORAGE_KEYS.completed, {}),
   plan: loadData(STORAGE_KEYS.plan, createEmptyPlan()),
-  quizzes: loadData(STORAGE_KEYS.quizzes, {})
+  quizzes: loadData(STORAGE_KEYS.quizzes, {}),
+  activities: loadData(STORAGE_KEYS.activities, {})
 };
 
 cloudSession = loadData(STORAGE_KEYS.cloudSession, null);
@@ -484,7 +499,8 @@ function getModuleStatus(moduleId) {
   const hasAnswer = state.answers[moduleId]?.values && Object.values(state.answers[moduleId].values).some(value => String(value).trim());
   const hasCheck = state.checks[moduleId]?.some(Boolean);
   const hasQuiz = Number.isInteger(state.quizzes[moduleId]?.selected);
-  if (hasAnswer || hasCheck || hasQuiz) return { label: "Devam Ediyor", className: "progress" };
+  const hasActivity = state.activities[moduleId] && Object.keys(state.activities[moduleId]).length > 0;
+  if (hasAnswer || hasCheck || hasQuiz || hasActivity) return { label: "Devam Ediyor", className: "progress" };
   return { label: "Başlanmadı", className: "" };
 }
 
@@ -534,7 +550,8 @@ function buildStudentPayload() {
     checks: state.checks,
     completed: state.completed,
     plan: state.plan,
-    quizzes: state.quizzes
+    quizzes: state.quizzes,
+    activities: state.activities
   };
 }
 
@@ -545,6 +562,7 @@ function persistStudentStateLocally() {
   localStorage.setItem(STORAGE_KEYS.completed, JSON.stringify(state.completed));
   localStorage.setItem(STORAGE_KEYS.plan, JSON.stringify(state.plan));
   localStorage.setItem(STORAGE_KEYS.quizzes, JSON.stringify(state.quizzes));
+  localStorage.setItem(STORAGE_KEYS.activities, JSON.stringify(state.activities));
 }
 
 function applyRemotePayload(payload, studentName, keepLocalWhenRemoteEmpty = false) {
@@ -556,6 +574,7 @@ function applyRemotePayload(payload, studentName, keepLocalWhenRemoteEmpty = fal
     state.completed = payload.completed || {};
     state.plan = Array.isArray(payload.plan) && payload.plan.length === 7 ? payload.plan : createEmptyPlan();
     state.quizzes = payload.quizzes || {};
+    state.activities = payload.activities || {};
   } else if (!keepLocalWhenRemoteEmpty) {
     state.settings = { studentName: "", dailyGoal: 30, theme: "blue" };
     state.answers = {};
@@ -563,6 +582,7 @@ function applyRemotePayload(payload, studentName, keepLocalWhenRemoteEmpty = fal
     state.completed = {};
     state.plan = createEmptyPlan();
     state.quizzes = {};
+    state.activities = {};
   }
   state.settings.studentName = studentName || state.settings.studentName;
   persistStudentStateLocally();
@@ -848,11 +868,13 @@ function renderModuleDetail(moduleId) {
   const answerRecord = state.answers[module.id]?.values || {};
   const savedChecks = state.checks[module.id] || [];
   const quizRecord = state.quizzes[module.id];
+  const activityRecord = state.activities[module.id] || {};
   const status = getModuleStatus(module.id);
   const checkedCount = savedChecks.filter(Boolean).length;
   const filledCount = module.fields.filter(field => String(answerRecord[field[0]] || "").trim()).length;
   const quizPoint = Number.isInteger(quizRecord?.selected) ? 1 : 0;
-  const progress = Math.round(((checkedCount + filledCount + quizPoint) / (module.checks.length + module.fields.length + 1)) * 100);
+  const labPoint = state.completed[module.id] || Object.keys(activityRecord.choices || {}).length === ACTIVITY_LABS[module.id].items.length ? 1 : 0;
+  const progress = Math.round(((checkedCount + filledCount + quizPoint + labPoint) / (module.checks.length + module.fields.length + 2)) * 100);
 
   main.innerHTML = `<article class="module-detail">
     <button class="button ghost small back-button" type="button" data-action="back-modules">← Tüm modüller</button>
@@ -877,6 +899,7 @@ function renderModuleDetail(moduleId) {
       <section class="insight-card power"><span class="insight-icon">⚡</span><div><span class="section-tag">GÜÇLÜ İPUCU</span><h3>Bunu dene</h3><p>${extra.powerTip}</p></div></section>
       <section class="insight-card caution"><span class="insight-icon">⚠️</span><div><span class="section-tag">SIK YAPILAN HATA</span><h3>Buna dikkat et</h3><p>${extra.commonMistake}</p></div></section>
     </div>
+    ${renderInteractiveLab(module.id)}
     ${renderModuleQuiz(module.id)}
     <section class="content-section task-box"><h3><span>🧩</span> Küçük uygulaman</h3><p>${module.task}</p></section>
 
@@ -895,6 +918,27 @@ function renderModuleDetail(moduleId) {
       ${module.id < 10 ? `<button class="module-jump next" type="button" data-action="open-module" data-module-id="${module.id + 1}"><span>Sonraki modül →</span><strong>${MODULES[module.id].title}</strong></button>` : `<button class="module-jump next" type="button" data-page="badges"><span>Akademi sonucu →</span><strong>Rozetlerimi Gör</strong></button>`}
     </nav>
   </article>`;
+}
+
+function renderInteractiveLab(moduleId) {
+  const lab = ACTIVITY_LABS[moduleId];
+  const record = state.activities[moduleId] || { choices: {}, missionDays: [] };
+  const choices = record.choices || {};
+  const answered = Object.keys(choices).length;
+  const correct = lab.items.filter((item, index) => choices[index] === item[1]).length;
+  const completed = answered === lab.items.length;
+  return `<section class="activity-lab" id="activity-lab-${moduleId}">
+    <div class="activity-lab-header"><div class="activity-lab-icon">${lab.icon}</div><div><span class="section-tag">ETKİLEŞİMLİ BECERİ ATÖLYESİ</span><h3>${lab.title}</h3><p>${lab.instruction}</p></div><div class="lab-score"><strong>${correct}/${lab.items.length}</strong><small>${completed ? "tamamlandı" : "doğru"}</small></div></div>
+    <div class="confidence-panel"><div><strong>Başlamadan önce bu konuda kendine kaç puan verirsin?</strong><small>1: Henüz emin değilim • 5: Kendime güveniyorum</small></div><div class="confidence-scale">${[1,2,3,4,5].map(value => `<button type="button" class="confidence-button ${record.confidenceBefore === value ? "active" : ""}" data-action="activity-confidence" data-stage="before" data-value="${value}" data-module-id="${moduleId}">${value}</button>`).join("")}</div></div>
+    <div class="classification-list">${lab.items.map((item, index) => {
+      const selected = choices[index];
+      const isCorrect = selected === item[1];
+      return `<article class="classification-card ${selected ? isCorrect ? "correct" : "wrong" : ""}"><div class="classification-number">${index + 1}</div><div class="classification-content"><strong>${item[0]}</strong><div class="classification-options">${lab.categories.map(category => `<button type="button" class="classification-option ${selected === category ? "selected" : ""}" data-action="activity-choice" data-module-id="${moduleId}" data-item-index="${index}" data-category="${escapeHTML(category)}">${category}</button>`).join("")}</div>${selected ? `<div class="classification-feedback"><b>${isCorrect ? "✓ Doğru karar" : `Doğru cevap: ${item[1]}`}</b><span>${item[2]}</span></div>` : ""}</div></article>`;
+    }).join("")}</div>
+    ${completed ? `<div class="lab-complete-banner"><span>🎉</span><div><strong>Atölyeyi tamamladın!</strong><p>${correct === lab.items.length ? "Bütün kararların doğru. Harika bir dikkat gösterdin." : "Geri bildirimlere bakarak yanlış kararlarını yeniden deneyebilirsin."}</p></div></div>` : ""}
+    <div class="mission-card"><div class="mission-copy"><span class="section-tag">7 GÜNLÜK GERÇEK HAYAT GÖREVİ</span><h4>${lab.mission}</h4><p>Görevi denediğin günleri işaretle. Bir gün bile başlaman değerlidir.</p></div><div class="mission-days">${[0,1,2,3,4,5,6].map(day => `<button type="button" class="mission-day ${record.missionDays?.[day] ? "done" : ""}" data-action="activity-day" data-module-id="${moduleId}" data-day-index="${day}"><span>${day + 1}</span><small>Gün</small></button>`).join("")}</div></div>
+    <div class="activity-reflection"><div class="field-group"><label for="activity-reflection-${moduleId}">Bu etkinlikten sonra fark ettiğim şey</label><textarea id="activity-reflection-${moduleId}" placeholder="Kısa bir düşünce yazabilirsin…">${escapeHTML(record.reflection || "")}</textarea></div><div><span>Etkinlikten sonra kendine verdiğin puan</span><div class="confidence-scale">${[1,2,3,4,5].map(value => `<button type="button" class="confidence-button ${record.confidenceAfter === value ? "active" : ""}" data-action="activity-confidence" data-stage="after" data-value="${value}" data-module-id="${moduleId}">${value}</button>`).join("")}</div><button class="button secondary small" type="button" data-action="save-activity-reflection" data-module-id="${moduleId}">Düşüncemi Kaydet</button></div></div>
+  </section>`;
 }
 
 function renderModuleQuiz(moduleId) {
@@ -955,6 +999,12 @@ function completeModule(form) {
   }
   if (!checks.every(Boolean)) {
     showModuleMessage("Tamamlamadan önce kontrol listendeki maddelere tekrar göz atıp hazır olanları işaretleyebilirsin.");
+    return;
+  }
+  const labCompleted = Object.keys(state.activities[module.id]?.choices || {}).length === ACTIVITY_LABS[module.id].items.length;
+  if (!state.completed[module.id] && !labCompleted) {
+    showModuleMessage("Modülü tamamlamadan önce etkileşimli beceri atölyesindeki üç kararı da denemeni rica ediyorum.");
+    document.querySelector(`#activity-lab-${module.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
     return;
   }
   if (!Number.isInteger(state.quizzes[module.id]?.selected)) {
@@ -1231,7 +1281,7 @@ function renderTeacherStudentTable(students) {
   if (!students.length) return `<div class="teacher-empty-class compact"><span>👋</span><h2>Bu sınıf henüz boş</h2><p>“Öğrenci Ekle” düğmesiyle ilk öğrenci giriş kodunu oluşturabilirsiniz.</p></div>`;
   return `<div class="student-table-wrap"><table class="student-table"><thead><tr><th>Öğrenci</th><th>Giriş kodu</th><th>Modül ilerlemesi</th><th>Plan</th><th>Son çalışma</th><th></th></tr></thead><tbody>${students.map(student => {
     const progress = getStudentProgress(student);
-    return `<tr data-student-row data-search-name="${escapeHTML(student.name.toLocaleLowerCase("tr-TR"))}"><td><div class="student-name-cell"><span>${escapeHTML(student.name.charAt(0).toLocaleUpperCase("tr-TR"))}</span><div><strong>${escapeHTML(student.name)}</strong><small>${progress.last_activity ? "Aktif öğrenci" : "Henüz başlamadı"}</small></div></div></td><td><button class="code-chip" type="button" data-action="copy-student-code" data-code="${escapeHTML(student.code_hint)}">${escapeHTML(student.code_hint)} 📋</button></td><td><div class="table-progress"><div><i style="width:${Number(progress.completed_count || 0) * 10}%"></i></div><strong>${Number(progress.completed_count || 0)} / 10</strong></div></td><td><span class="percent-chip ${Number(progress.plan_percent || 0) >= 70 ? "good" : ""}">%${Number(progress.plan_percent || 0)}</span></td><td><span class="last-seen">${progress.last_activity ? formatRelativeDate(progress.last_activity) : "—"}</span></td><td><button class="button ghost small" type="button" data-action="view-student" data-student-id="${student.id}">İncele →</button></td></tr>`;
+    return `<tr data-student-row data-search-name="${escapeHTML(student.name.toLocaleLowerCase("tr-TR"))}"><td><div class="student-name-cell"><span>${escapeHTML(student.name.charAt(0).toLocaleUpperCase("tr-TR"))}</span><div><strong>${escapeHTML(student.name)}</strong><small>${progress.last_activity ? "Aktif öğrenci" : "Henüz başlamadı"}</small></div></div></td><td><button class="code-chip" type="button" data-action="copy-student-code" data-code="${escapeHTML(student.code_hint)}">${escapeHTML(student.code_hint)} 📋</button></td><td><div class="table-progress"><div><i style="width:${Number(progress.completed_count || 0) * 10}%"></i></div><strong>${Number(progress.completed_count || 0)} / 10</strong></div></td><td><span class="percent-chip ${Number(progress.plan_percent || 0) >= 70 ? "good" : ""}">%${Number(progress.plan_percent || 0)}</span></td><td><span class="last-seen">${progress.last_activity ? formatRelativeDate(progress.last_activity) : "—"}</span></td><td><div class="row-actions"><button class="button ghost small" type="button" data-action="view-student" data-student-id="${student.id}">İncele →</button><button class="manage-student-button" type="button" data-action="manage-student" data-student-id="${student.id}" aria-label="${escapeHTML(student.name)} için düzenleme seçeneklerini aç" title="Öğrenciyi yönet">•••</button></div></td></tr>`;
   }).join("")}</tbody></table></div>`;
 }
 
@@ -1251,15 +1301,24 @@ function renderTeacherStudentDetail(studentId) {
   const progress = getStudentProgress(student);
   const payload = progress.payload || {};
   const completedIds = Object.keys(payload.completed || {}).map(Number);
+  const activityCount = Object.values(payload.activities || {}).filter(record => Object.keys(record.choices || {}).length > 0).length;
   const answeredModules = Object.entries(payload.answers || {}).sort((a, b) => new Date(b[1]?.savedAt || 0) - new Date(a[1]?.savedAt || 0));
+  const activityEntries = Object.entries(payload.activities || {}).filter(([, record]) => Object.keys(record.choices || {}).length > 0);
   const plan = Array.isArray(payload.plan) ? payload.plan : [];
   const plannedItems = plan.filter(item => item.subject || item.topic || item.duration);
 
   teacherContent.insertAdjacentHTML("beforeend", `<div class="teacher-modal" id="teacher-student-modal"><div class="teacher-modal-backdrop" data-action="close-student-detail"></div><article class="student-detail-sheet">
     <header class="student-detail-header"><div class="student-detail-identity"><span>${escapeHTML(student.name.charAt(0).toLocaleUpperCase("tr-TR"))}</span><div><small>ÖĞRENCİ GELİŞİM DOSYASI</small><h2>${escapeHTML(student.name)}</h2><p>Son güncelleme: ${progress.last_activity ? formatDate(progress.last_activity) : "Henüz çalışma yok"}</p></div></div><button class="modal-close" type="button" data-action="close-student-detail" aria-label="Kapat">×</button></header>
     <div class="student-detail-body">
-      <div class="student-detail-stats"><div><span>Tamamlanan modül</span><strong>${completedIds.length} / 10</strong></div><div><span>Haftalık plan</span><strong>%${Number(progress.plan_percent || 0)}</strong></div><div><span>Yanıtlanan uygulama</span><strong>${answeredModules.length}</strong></div></div>
+      <div class="student-detail-stats"><div><span>Tamamlanan modül</span><strong>${completedIds.length} / 10</strong></div><div><span>Haftalık plan</span><strong>%${Number(progress.plan_percent || 0)}</strong></div><div><span>Yanıtlanan uygulama</span><strong>${answeredModules.length}</strong></div><div><span>Etkileşimli atölye</span><strong>${activityEntries.length}</strong></div></div>
       <section class="detail-section"><div class="detail-title"><div><span class="section-tag">MODÜLLER</span><h3>Beceri gelişimi</h3></div></div><div class="detail-module-grid">${MODULES.map(module => `<div class="detail-module ${completedIds.includes(module.id) ? "done" : answeredModules.some(([id]) => Number(id) === module.id) ? "progress" : ""}"><span>${completedIds.includes(module.id) ? "✓" : module.icon}</span><div><small>${module.id}. Hafta</small><strong>${module.title}</strong></div></div>`).join("")}</div></section>
+      <section class="detail-section"><div class="detail-title"><div><span class="section-tag">ETKİLEŞİMLİ ATÖLYELER</span><h3>Karar, güven ve görev takibi</h3></div></div>${activityEntries.length ? `<div class="teacher-activity-list">${activityEntries.map(([id, record]) => {
+        const lab = ACTIVITY_LABS[id];
+        if (!lab) return "";
+        const answered = Object.keys(record.choices || {}).length;
+        const correct = lab.items.filter((item, index) => record.choices?.[index] === item[1]).length;
+        return `<article class="teacher-activity-item"><span>${lab.icon}</span><div><small>${id}. MODÜL ATÖLYESİ</small><strong>${lab.title}</strong><p>${escapeHTML(record.reflection || "Öğrenci henüz düşünce notu yazmadı.")}</p></div><div class="teacher-activity-metrics"><b>${correct}/${answered || lab.items.length}</b><small>${(record.missionDays || []).filter(Boolean).length}/7 görev</small><em>${record.confidenceBefore || "–"} → ${record.confidenceAfter || "–"} güven</em></div></article>`;
+      }).join("")}</div>` : `<div class="empty-mini wide">Öğrenci henüz etkileşimli atölyeye başlamadı.</div>`}</section>
       <section class="detail-section"><div class="detail-title"><div><span class="section-tag">ÖĞRENCİ CEVAPLARI</span><h3>Son uygulamalar</h3></div></div>${answeredModules.length ? `<div class="answer-accordion">${answeredModules.map(([id, record]) => {
         const module = MODULES.find(item => item.id === Number(id));
         if (!module) return "";
@@ -1268,7 +1327,27 @@ function renderTeacherStudentDetail(studentId) {
       }).join("")}</div>` : `<div class="empty-mini wide">Öğrenci henüz bir uygulama cevabı kaydetmedi.</div>`}</section>
       <section class="detail-section"><div class="detail-title"><div><span class="section-tag">HAFTALIK PLAN</span><h3>Planlanan çalışmalar</h3></div></div>${plannedItems.length ? `<div class="detail-plan-list">${plannedItems.map(item => `<div class="detail-plan-item ${item.done ? "done" : ""}"><span>${item.done ? "✓" : item.day.slice(0, 2)}</span><div><strong>${escapeHTML(item.subject)} • ${escapeHTML(item.topic)}</strong><small>${escapeHTML(item.day)} • ${escapeHTML(item.duration)} dakika${item.note ? ` • ${escapeHTML(item.note)}` : ""}</small></div></div>`).join("")}</div>` : `<div class="empty-mini wide">Öğrenci henüz haftalık plan oluşturmadı.</div>`}</section>
     </div>
-    <footer class="student-detail-footer"><button class="button ghost" type="button" data-action="close-student-detail">Kapat</button><button class="button primary" type="button" data-action="copy-remote-report" data-student-id="${student.id}">📋 Öğrenci Raporunu Kopyala</button></footer>
+    <footer class="student-detail-footer"><button class="button ghost" type="button" data-action="close-student-detail">Kapat</button><button class="button secondary" type="button" data-action="manage-student" data-student-id="${student.id}">✏️ Öğrenciyi Düzenle</button><button class="button primary" type="button" data-action="copy-remote-report" data-student-id="${student.id}">📋 Öğrenci Raporunu Kopyala</button></footer>
+  </article></div>`);
+}
+
+function renderStudentManagementModal(studentId) {
+  document.querySelector("#teacher-student-modal")?.remove();
+  document.querySelector("#student-management-modal")?.remove();
+  const student = teacherStore.students.find(item => item.id === studentId);
+  if (!student) return;
+  const progress = getStudentProgress(student);
+  teacherContent.insertAdjacentHTML("beforeend", `<div class="teacher-modal management-modal" id="student-management-modal"><div class="teacher-modal-backdrop" data-action="close-student-management"></div><article class="management-dialog">
+    <header class="management-header"><div><span class="section-tag">ÖĞRENCİ YÖNETİMİ</span><h2>${escapeHTML(student.name)}</h2><p>Öğrencinin giriş bilgilerini ve çalışmalarını yönetin.</p></div><button class="modal-close" type="button" data-action="close-student-management" aria-label="Kapat">×</button></header>
+    <form id="edit-student-form" class="management-form" data-student-id="${student.id}" novalidate>
+      <div class="management-avatar">${escapeHTML(student.name.charAt(0).toLocaleUpperCase("tr-TR"))}</div>
+      <div class="field-group"><label for="edit-student-name">Öğrenci adı</label><input id="edit-student-name" name="studentName" maxlength="80" value="${escapeHTML(student.name)}" required><small>Öğretmen panelinde ve öğrenci girişinde bu ad görünür.</small></div>
+      <div class="field-group"><label for="edit-student-code">Öğrenci giriş kodu</label><div class="code-input"><input id="edit-student-code" name="studentCode" maxlength="20" value="${escapeHTML(student.code_hint)}" required><button type="button" data-action="generate-edit-student-code">Yenile</button></div><small>Kodu değiştirirseniz eski kod hemen geçersiz olur.</small></div>
+      <div class="login-message" data-form-message role="alert"></div>
+      <button class="button primary" type="submit">Değişiklikleri Kaydet ✓</button>
+    </form>
+    <section class="management-danger-zone"><div><span>↺</span><div><strong>Çalışma ilerlemesini sıfırla</strong><p>${Number(progress.completed_count || 0)} modül ve haftalık plan bilgileri temizlenir. Öğrenci hesabı kalır.</p></div></div><button class="button ghost small" type="button" data-action="reset-student-progress" data-student-id="${student.id}">İlerlemeyi Sıfırla</button></section>
+    <section class="management-danger-zone delete"><div><span>🗑️</span><div><strong>Öğrenciyi sınıftan sil</strong><p>Öğrenci ve tüm çalışma verileri kalıcı olarak silinir. Bu işlem geri alınamaz.</p></div></div><button class="button danger small" type="button" data-action="delete-student" data-student-id="${student.id}">Öğrenciyi Sil</button></section>
   </article></div>`);
 }
 
@@ -1276,6 +1355,7 @@ function buildRemoteStudentReport(student) {
   const progress = getStudentProgress(student);
   const payload = progress.payload || {};
   const completedIds = Object.keys(payload.completed || {}).map(Number);
+  const activityCount = Object.values(payload.activities || {}).filter(record => Object.keys(record.choices || {}).length > 0).length;
   const answers = Object.entries(payload.answers || {}).sort((a, b) => new Date(b[1]?.savedAt || 0) - new Date(a[1]?.savedAt || 0));
   const lastAnswer = answers[0];
   let lastAnswerText = "Henüz uygulama cevabı yok.";
@@ -1283,7 +1363,7 @@ function buildRemoteStudentReport(student) {
     const module = MODULES.find(item => item.id === Number(lastAnswer[0]));
     lastAnswerText = `${module?.title || "Modül"}\n${module?.fields.filter(field => lastAnswer[1].values?.[field[0]]).map(field => `${field[1]} ${lastAnswer[1].values[field[0]]}`).join("\n") || ""}`;
   }
-  return `VERİMLİ DERS ÇALIŞMA AKADEMİSİ\nÖĞRETMEN GELİŞİM RAPORU\n\nÖğrenci: ${student.name}\nTarih: ${new Intl.DateTimeFormat("tr-TR").format(new Date())}\nTamamlanan modül: ${completedIds.length} / 10\nHaftalık plan: %${Number(progress.plan_percent || 0)}\nSon etkinlik: ${progress.last_activity ? formatDate(progress.last_activity) : "Henüz yok"}\n\nTamamlanan modüller:\n${completedIds.length ? completedIds.map(id => `${id}. ${MODULES.find(module => module.id === id)?.title || ""}`).join("\n") : "Henüz yok"}\n\nSon uygulama:\n${lastAnswerText}`;
+  return `VERİMLİ DERS ÇALIŞMA AKADEMİSİ\nÖĞRETMEN GELİŞİM RAPORU\n\nÖğrenci: ${student.name}\nTarih: ${new Intl.DateTimeFormat("tr-TR").format(new Date())}\nTamamlanan modül: ${completedIds.length} / 10\nEtkileşimli atölye: ${activityCount} / 10\nHaftalık plan: %${Number(progress.plan_percent || 0)}\nSon etkinlik: ${progress.last_activity ? formatDate(progress.last_activity) : "Henüz yok"}\n\nTamamlanan modüller:\n${completedIds.length ? completedIds.map(id => `${id}. ${MODULES.find(module => module.id === id)?.title || ""}`).join("\n") : "Henüz yok"}\n\nSon uygulama:\n${lastAnswerText}`;
 }
 
 async function createTeacherClass(form) {
@@ -1328,6 +1408,59 @@ async function addTeacherStudent(form) {
   await loadTeacherData();
 }
 
+async function updateTeacherStudent(form) {
+  const studentId = form.dataset.studentId;
+  const name = form.elements.studentName.value.trim();
+  const code = form.elements.studentCode.value.trim().toUpperCase();
+  const message = form.querySelector("[data-form-message]");
+  if (!name || code.length < 6) {
+    message.textContent = "Öğrenci adı ve en az 6 karakterli bir giriş kodu yazın.";
+    message.className = "login-message show error";
+    return;
+  }
+  setFormBusy(form, true, "Kaydediliyor…");
+  const { error } = await cloudClient.rpc("teacher_update_student", { p_student_id: studentId, p_name: name, p_code: code });
+  setFormBusy(form, false);
+  if (error) {
+    message.textContent = error.message || "Öğrenci bilgileri güncellenemedi.";
+    message.className = "login-message show error";
+    return;
+  }
+  document.querySelector("#student-management-modal")?.remove();
+  showToast(`${name} için giriş bilgileri güncellendi. ✓`);
+  await loadTeacherData();
+}
+
+async function resetTeacherStudentProgress(studentId) {
+  const student = teacherStore.students.find(item => item.id === studentId);
+  if (!student) return;
+  const confirmed = window.confirm(`${student.name} adlı öğrencinin tüm modül cevapları ve haftalık planı sıfırlanacak. Öğrenci hesabı korunacak. Devam etmek istiyor musunuz?`);
+  if (!confirmed) return;
+  const { error } = await cloudClient.rpc("teacher_reset_student_progress", { p_student_id: studentId });
+  if (error) {
+    showToast("İlerleme sıfırlanamadı. Lütfen tekrar deneyin.", "error");
+    return;
+  }
+  document.querySelector("#student-management-modal")?.remove();
+  showToast(`${student.name} için çalışma ilerlemesi sıfırlandı.`);
+  await loadTeacherData();
+}
+
+async function deleteTeacherStudent(studentId) {
+  const student = teacherStore.students.find(item => item.id === studentId);
+  if (!student) return;
+  const confirmed = window.confirm(`${student.name} adlı öğrenci ve tüm çalışma verileri kalıcı olarak silinecek. Bu işlem geri alınamaz. Silmek istediğinize emin misiniz?`);
+  if (!confirmed) return;
+  const { error } = await cloudClient.rpc("teacher_delete_student", { p_student_id: studentId });
+  if (error) {
+    showToast("Öğrenci silinemedi. Lütfen tekrar deneyin.", "error");
+    return;
+  }
+  document.querySelector("#student-management-modal")?.remove();
+  showToast(`${student.name} sınıftan silindi.`);
+  await loadTeacherData();
+}
+
 async function copyText(text, successMessage) {
   try {
     await navigator.clipboard.writeText(text);
@@ -1364,6 +1497,7 @@ function resetAllData() {
   state.completed = {};
   state.plan = createEmptyPlan();
   state.quizzes = {};
+  state.activities = {};
   persistStudentStateLocally();
   scheduleStudentSync();
   showToast("Tüm veriler temizlendi. Yeni bir başlangıç yapabilirsin. 🌱");
@@ -1377,15 +1511,68 @@ function handleQuizAnswer(moduleId, selected) {
   saveData(STORAGE_KEYS.quizzes, state.quizzes);
   const quizElement = document.querySelector(`#module-quiz-${moduleId}`);
   if (quizElement) quizElement.outerHTML = renderModuleQuiz(moduleId);
+  updateModuleProgressFromState(moduleId);
+  if (selected === quiz.answer) showToast("Doğru cevap! Yöntemi yakaladın. 🌟");
+}
+
+function ensureActivityRecord(moduleId) {
+  if (!state.activities[moduleId]) state.activities[moduleId] = { choices: {}, missionDays: [] };
+  if (!state.activities[moduleId].choices) state.activities[moduleId].choices = {};
+  if (!Array.isArray(state.activities[moduleId].missionDays)) state.activities[moduleId].missionDays = [];
+  const reflection = document.querySelector(`#activity-reflection-${moduleId}`);
+  if (reflection) state.activities[moduleId].reflection = reflection.value.trim();
+  return state.activities[moduleId];
+}
+
+function updateModuleProgressFromState(moduleId) {
   const module = MODULES.find(item => item.id === moduleId);
+  if (!module) return;
   const filled = module.fields.filter(field => String(state.answers[moduleId]?.values?.[field[0]] || "").trim()).length;
   const checked = (state.checks[moduleId] || []).filter(Boolean).length;
-  const progress = Math.round(((filled + checked + 1) / (module.fields.length + module.checks.length + 1)) * 100);
+  const quizPoint = Number.isInteger(state.quizzes[moduleId]?.selected) ? 1 : 0;
+  const labPoint = state.completed[moduleId] || Object.keys(state.activities[moduleId]?.choices || {}).length === ACTIVITY_LABS[moduleId].items.length ? 1 : 0;
+  const progress = Math.round(((filled + checked + quizPoint + labPoint) / (module.fields.length + module.checks.length + 2)) * 100);
   const progressFill = document.querySelector(".module-progress .progress-fill");
   const progressValue = document.querySelector(".module-progress .progress-line strong");
   if (progressFill) progressFill.style.width = `${progress}%`;
   if (progressValue) progressValue.textContent = `%${progress}`;
-  if (selected === quiz.answer) showToast("Doğru cevap! Yöntemi yakaladın. 🌟");
+}
+
+function refreshInteractiveLab(moduleId) {
+  saveData(STORAGE_KEYS.activities, state.activities);
+  const element = document.querySelector(`#activity-lab-${moduleId}`);
+  if (element) element.outerHTML = renderInteractiveLab(moduleId);
+  updateModuleProgressFromState(moduleId);
+}
+
+function handleActivityChoice(moduleId, itemIndex, category) {
+  const record = ensureActivityRecord(moduleId);
+  record.choices[itemIndex] = category;
+  record.updatedAt = new Date().toISOString();
+  refreshInteractiveLab(moduleId);
+}
+
+function handleActivityConfidence(moduleId, stage, value) {
+  const record = ensureActivityRecord(moduleId);
+  if (stage === "before") record.confidenceBefore = value;
+  else record.confidenceAfter = value;
+  record.updatedAt = new Date().toISOString();
+  refreshInteractiveLab(moduleId);
+}
+
+function handleActivityDay(moduleId, dayIndex) {
+  const record = ensureActivityRecord(moduleId);
+  record.missionDays[dayIndex] = !record.missionDays[dayIndex];
+  record.updatedAt = new Date().toISOString();
+  refreshInteractiveLab(moduleId);
+  if (record.missionDays.filter(Boolean).length === 7) showToast("7 günlük görevi tamamladın! Bu gerçek bir alışkanlık adımı. 🏆");
+}
+
+function saveActivityReflection(moduleId) {
+  const record = ensureActivityRecord(moduleId);
+  record.updatedAt = new Date().toISOString();
+  saveData(STORAGE_KEYS.activities, state.activities);
+  showToast("Etkinlik düşüncen kaydedildi. ✨");
 }
 
 document.addEventListener("click", event => {
@@ -1415,6 +1602,10 @@ document.addEventListener("click", event => {
   if (action === "open-module") navigate("modules", { moduleId: Number(actionButton.dataset.moduleId) });
   else if (action === "back-modules") navigate("modules");
   else if (action === "quiz-option") handleQuizAnswer(Number(actionButton.dataset.moduleId), Number(actionButton.dataset.optionIndex));
+  else if (action === "activity-choice") handleActivityChoice(Number(actionButton.dataset.moduleId), Number(actionButton.dataset.itemIndex), actionButton.dataset.category);
+  else if (action === "activity-confidence") handleActivityConfidence(Number(actionButton.dataset.moduleId), actionButton.dataset.stage, Number(actionButton.dataset.value));
+  else if (action === "activity-day") handleActivityDay(Number(actionButton.dataset.moduleId), Number(actionButton.dataset.dayIndex));
+  else if (action === "save-activity-reflection") saveActivityReflection(Number(actionButton.dataset.moduleId));
   else if (action === "save-draft") {
     const form = document.querySelector("#module-form");
     if (saveModuleDraft(form)) {
@@ -1467,6 +1658,15 @@ document.addEventListener("click", event => {
   else if (action === "copy-student-code") copyText(actionButton.dataset.code, "Öğrenci kodu kopyalandı. 📋");
   else if (action === "view-student") renderTeacherStudentDetail(actionButton.dataset.studentId);
   else if (action === "close-student-detail") document.querySelector("#teacher-student-modal")?.remove();
+  else if (action === "manage-student") renderStudentManagementModal(actionButton.dataset.studentId);
+  else if (action === "close-student-management") document.querySelector("#student-management-modal")?.remove();
+  else if (action === "generate-edit-student-code") {
+    const form = document.querySelector("#edit-student-form");
+    const namePart = form.elements.studentName.value.trim().split(/\s+/)[0].toLocaleUpperCase("tr-TR").replace(/[^A-ZÇĞİÖŞÜ]/g, "").slice(0, 5) || "OGR";
+    form.elements.studentCode.value = `${namePart}-${Math.floor(1000 + Math.random() * 9000)}`;
+  }
+  else if (action === "reset-student-progress") resetTeacherStudentProgress(actionButton.dataset.studentId);
+  else if (action === "delete-student") deleteTeacherStudent(actionButton.dataset.studentId);
   else if (action === "copy-remote-report") {
     const student = teacherStore.students.find(item => item.id === actionButton.dataset.studentId);
     if (student) copyText(buildRemoteStudentReport(student), `${student.name} için rapor kopyalandı. 📋`);
@@ -1482,6 +1682,7 @@ document.addEventListener("submit", event => {
   else if (event.target.id === "teacher-login-form") handleTeacherLogin(event.target);
   else if (event.target.id === "create-class-form") createTeacherClass(event.target);
   else if (event.target.id === "add-student-form") addTeacherStudent(event.target);
+  else if (event.target.id === "edit-student-form") updateTeacherStudent(event.target);
 });
 
 document.addEventListener("input", event => {
