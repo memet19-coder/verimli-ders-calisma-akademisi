@@ -40,7 +40,7 @@ const STORAGE_KEYS = {
 const DAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
 const PREVIEW_BLOCKED_ACTIONS = new Set([
   "quiz-option", "activity-choice", "activity-confidence", "activity-day",
-  "save-activity-reflection", "save-draft", "clear-plan", "select-theme", "reset-data"
+  "save-activity-reflection", "visit-reading-workshop", "save-draft", "clear-plan", "select-theme", "reset-data"
 ]);
 
 const TEACHER_TIPS = [
@@ -293,6 +293,99 @@ const MODULES = [
     checks: ["Hedefim net.", "Hedefim ölçülebilir.", "Hedefim gerçekçi.", "Hedefim için günlük adım belirledim."]
   }
 ];
+
+const MODULE_ANECDOTES = {
+  1: {
+    title: "Deniz’in dolu ajandası",
+    paragraphs: [
+      "Deniz, pazartesi akşamı yeni aldığı ajandasını açtı ve o hafta yapması gereken her şeyi tek tek yazdı. Matematikten iki konu, Türkçeden yüz soru, fen projesi, İngilizce kelimeler ve kitap okuma… Sayfa doldukça kendini çalışkan hissediyordu. Fakat görevlerin hangi gün ve ne kadar süreyle yapılacağı belli değildi. Salı günü okuldan yorgun gelince listenin büyüklüğünü gördü, nereden başlayacağını seçemedi ve ajandayı kapattı.",
+      "Ertesi gün öğretmeni ona bütün haftayı bir kerede çözmeye çalışmamasını söyledi. Deniz önce en önemli iki işi seçti: cuma günkü fen projesi ve zorlandığı kesirler konusu. Fen projesini üç küçük parçaya böldü; araştırma, taslak ve düzenleme. Kesirler için de çarşamba ve cumartesi günlerine 25’er dakika ayırdı. Her günün yanına kısa bir dinlenme zamanı ekledi.",
+      "Hafta bittiğinde listedeki her şeyi tamamlamamıştı ama önemli işlerini zamanında yapmıştı. İlk kez planın, bütün boşlukları görevlerle doldurmak olmadığını anladı. İyi bir plan geleceği kusursuz biçimde tahmin etmez; neye önce başlayacağını gösterir ve yorulduğunda yeniden yolunu bulmana yardım eder."
+    ],
+    takeaway: "Planın gücü, çok görev yazmaktan değil; önemli işi doğru güne ve uygulanabilir bir süreye yerleştirmekten gelir."
+  },
+  2: {
+    title: "Elif’in kaybolan yirmi dakikası",
+    paragraphs: [
+      "Elif, sosyal bilgiler ödevini bitirmek için masaya oturduğunda telefonunu sessize aldı. Telefon masanın köşesindeydi. Ekran her yandığında yalnızca kimin yazdığına bakacağını düşünüyordu. İlk bildirime birkaç saniye baktı, sonra ödevine döndü. Fakat kaldığı cümleyi yeniden okuması gerekti. İkinci bildirimde bir arkadaşının mesajına cevap verdi. Yirmi dakika sonra defterinde yalnızca iki cümle vardı.",
+      "Elif önce kendisine kızdı ve dikkatinin çok kötü olduğunu düşündü. Sonra sorununu gözlemlemeye karar verdi. Telefonu salondaki çekmeceye bıraktı, masasında yalnızca kitabını ve kalemini tuttu. Kendisine ‘Sadece 20 dakika bu başlığı bitireceğim.’ dedi. Aklına başka bir şey geldiğinde hemen yapmak yerine küçük bir kâğıda not etti.",
+      "Sayaç çaldığında bütün ödev bitmemişti ama bir sayfayı gerçekten anlayarak tamamlamıştı. Elif, dikkatin yalnızca güçlü bir irade meselesi olmadığını fark etti. Çevresinde gördüğü ve duyduğu şeyler beynine sürekli yeni görevler sunuyordu. Ortamını düzenlediğinde zihninin tek işe dönmesi kolaylaşıyordu."
+    ],
+    takeaway: "Dikkatini korumak için kendinle savaşmak zorunda değilsin; çevreni tek işi destekleyecek biçimde düzenleyebilirsin."
+  },
+  3: {
+    title: "Zeynep’in unuttuğunu sandığı konu",
+    paragraphs: [
+      "Zeynep, fen sınavından önce Güneş Sistemi konusuna iki saat çalıştı. Kitabı birkaç kez okudu, önemli cümlelerin altını çizdi ve o akşam her şeyi bildiğini düşündü. Üç gün sonra arkadaşı gezegenlerin sırasını sorunca iki gezegeni karıştırdı. ‘Bunca saat çalıştım, yine unutmuşum.’ diyerek moralini bozdu.",
+      "Öğretmeni, unutmanın öğrenmenin düşmanı değil doğal bir parçası olduğunu anlattı. Zeynep bu kez konuyu kapatıp hatırladıklarını boş bir kâğıda yazdı. Ertesi gün beş dakika gezegen kartlarını sıraladı. Üç gün sonra notlarına bakmadan konuyu kardeşine anlattı ve on soru çözdü. Yanlış yaptığı iki soruyu işaretleyip hafta sonunda yeniden denedi.",
+      "Bir hafta sonra bütün cümleleri ezbere söyleyemiyordu; fakat gezegenlerin sırasını ve özelliklerini kendi sözleriyle açıklayabiliyordu. Uzun süre kitaba bakmanın kendisine tanıdıklık hissi verdiğini, asıl öğrenmenin ise bilgiyi zihninden geri çağırırken gerçekleştiğini gördü. Kısa tekrarlar, her dönüşte bilgiyi biraz daha sağlamlaştırmıştı."
+    ],
+    takeaway: "Tekrar, aynı sayfayı yeniden okumak değil; bilgiyi farklı günlerde hatırlamaya çalışmak ve kendini sınamaktır."
+  },
+  4: {
+    title: "Arda’nın yetişmeyen notları",
+    paragraphs: [
+      "Arda, öğretmen konuşurken duyduğu her cümleyi defterine geçirmek istiyordu. Bir cümleyi yazarken öğretmen yeni bir bilgiye geçiyor, Arda başını kaldırdığında konunun bağlantısını kaçırıyordu. Defteri sayfalarca yazıyla doluydu ama sınavdan önce hangi bilginin önemli olduğunu bulmak uzun sürüyordu. Notlarının çok olması ona güven veriyor, yine de konuyu anlatması istendiğinde zorlanıyordu.",
+      "Bir derste farklı bir yöntem denedi. Sayfanın ortasına konunun adını yazdı. Öğretmenin tekrar ettiği kavramları anahtar kelime olarak ekledi; her kelimenin yanına kısa bir açıklama ve kendi bulduğu bir örnek koydu. Anlamadığı yere soru işareti çizdi. Ders bitince iki dakika ayırıp sayfanın altına ‘Bugün ne öğrendim?’ başlığıyla üç cümle yazdı.",
+      "Akşam notlarına baktığında bütün dersin kelimesi kelimesine yazılı olmadığını gördü. Buna rağmen anahtar kelimeler ona konunun akışını hatırlatıyordu. Soru işareti koyduğu yeri öğretmenine sordu ve eksik bağlantıyı tamamladı. Arda, iyi notun dersin kopyası olmadığını; zihnin anlayabileceği bir harita olduğunu fark etti."
+    ],
+    takeaway: "İşe yarayan not, en çok yazıyı değil; ana düşünceyi, bağlantıları, kendi cümleni ve hatırlatıcı bir örneği içerir."
+  },
+  5: {
+    title: "Selin’in kaçırdığı küçük ayrıntı",
+    paragraphs: [
+      "Selin, okul gezisiyle ilgili duyuruyu hızlıca okudu. Metinde buluşma saati, getirilecek malzemeler ve hava durumuna göre yapılacak değişiklikler anlatılıyordu. Selin yalnızca gezi yerini hatırladı. Ertesi sabah okula normal saatinde geldiğinde grubun daha erken toplandığını öğrendi. Duyuruyu okuduğundan emindi ama önemli bilgiyi zihninde tutamamıştı.",
+      "O gün metinleri bitirmek için değil anlamak için okumayı denedi. Önce başlığa baktı ve metnin ne anlatacağını tahmin etti. Her paragraftan sonra durup ‘Bu bölümün görevi neydi?’ diye sordu. Bir kenara yalnızca bir anahtar kelime yazdı: saat, malzeme, değişiklik. Sonunda metni kapatarak üç kelime üzerinden duyuruyu kendi cümleleriyle anlattı.",
+      "Selin, gözlerinin bütün satırların üzerinden geçmesinin anlamak için yeterli olmadığını gördü. Okurken zihnin de metinle konuşması gerekiyordu. Konuyu, ana fikri ve ayrıntıların görevini düşündüğünde bilgiler birbirine bağlanıyordu. Yavaşlamak her zaman daha uzun sürmüyor; bazen metni ikinci kez okumak zorunda kalmayı önlüyordu."
+    ],
+    takeaway: "Anlamak, metni bitirdiğinde değil; metnin ne söylediğini ve neden söylediğini kendi cümlelerinle açıklayabildiğinde gerçekleşir."
+  },
+  6: {
+    title: "Can’ın kırmızı işaretleri",
+    paragraphs: [
+      "Can, matematik testini kontrol ettiğinde üç yanlışının yanına kırmızı çarpı koydu ve hemen yeni teste geçti. Yanlış sorulara bakmak ona başarısız olmuş gibi hissettiriyordu. Bir hafta sonra benzer sorularda yine aynı hataları yaptı. Doğru sayısı artmadığı için daha fazla soru çözmesi gerektiğini düşündü; fakat çözdüğü soru sayısı arttıkça aynı yanlışlar da tekrarlanıyordu.",
+      "Öğretmeni üç yanlışı masaya koyup her biri için farklı bir soru sordu: ‘Konuyu mu bilmiyordun, soruyu mu hızlı okudun, yoksa işlem sırasında mı hata yaptın?’ Can ilk soruda bir kavramı karıştırdığını, ikincide ‘değildir’ kelimesini görmediğini, üçüncüde ise çıkarma işlemini yanlış yaptığını fark etti. Her yanlışın yanına nedenini ve bir sonraki adımını yazdı.",
+      "Can, konu eksiği için kısa bir anlatıma döndü; dikkat hatasında soru kökünü işaretledi; işlem hatası için çözümünü son kez kontrol etti. Sonra her türden iki benzer soru çözdü. Yanlış sayısı bir anda sıfırlanmadı ama artık her yanlış ona ne yapacağını söylüyordu. Kırmızı çarpılar yargı değil, çalışma yönünü gösteren işaretlere dönüşmüştü."
+    ],
+    takeaway: "Yanlışın değerli hâle gelmesi için yalnızca doğru cevabı görmek değil, hatanın nedenini bulup yeni bir davranış seçmek gerekir."
+  },
+  7: {
+    title: "Defne’nin aynı görünen iki puanı",
+    paragraphs: [
+      "Defne iki deneme sınavından da birbirine yakın puan aldı. İlk bakışta hiç ilerlemediğini düşündü ve bütün derslere daha uzun çalışmaya karar verdi. Sonra sonuç kâğıtlarını yan yana koydu. İlk denemede matematikte konu eksiği fazlaydı; ikinci denemede matematik doğruları artmış ama Türkçenin son sorularına zamanı yetmemişti. Aynı puanın arkasında iki farklı hikâye vardı.",
+      "Defne yanlışlarını derslere ve nedenlerine göre ayırdı. Türkçede uzun paragraflarda hız kaybettiğini, fende iki soruyu dikkatsiz okuduğunu, matematikte kesirler konusunun düzeldiğini gördü. Kendisine üç hedef seçti: haftada iki gün süreli paragraf çalışmak, fen sorularında soru kökünü işaretlemek ve güçlenen matematik konusunu kısa tekrarlarla korumak.",
+      "Sonraki denemeye girerken amacı yalnızca daha yüksek puan almak değildi. Zamanını hangi bölümde kontrol edeceğini ve yanlış yaptığında neyi inceleyeceğini biliyordu. Deneme sonucu artık tek bir sayı olmaktan çıkmıştı. Defne’ye hangi becerinin geliştiğini, hangisinin destek istediğini ve bir sonraki hafta ne yapacağını gösteren ayrıntılı bir yol haritasıydı."
+    ],
+    takeaway: "Deneme analizi, puanı görmekle bitmez; sonuçtan ders, konu, hata nedeni ve yeni çalışma adımı çıkardığında tamamlanır."
+  },
+  8: {
+    title: "Bora’nın sınavdan önceki alarmı",
+    paragraphs: [
+      "Bora evde soruları çözebiliyor fakat sınav kâğıdı önüne geldiğinde kalbinin hızlandığını hissediyordu. ‘Ya bildiklerimi unutursam?’ düşüncesi aklına gelince ilk soruya tekrar tekrar bakıyor, zamanın geçtiğini fark ettikçe daha çok geriliyordu. Bu durumu bilgisiz olduğunun kanıtı sandığı için kaygılandığını kimseye söylemek istemiyordu.",
+      "Rehber öğretmeni bedenindeki belirtilerin bir alarm sistemi gibi çalıştığını anlattı. Alarm tehlike var demek zorunda değildi; Bora’nın sınava önem verdiğini de gösterebilirdi. Bir plan hazırladılar: ayaklarını yere hissetmek, üç kez yavaş nefes vermek, kendisine ‘Heyecanlı olsam da bildiğim adımları uygulayabilirim.’ demek ve önce yapabildiği bir soruyla başlamak.",
+      "Sonraki sınavda kalbi yine hızlandı. Bora bu kez heyecanın tamamen geçmesini beklemedi. Planındaki adımları uygulayıp kolay gördüğü sorudan başladı. Birkaç dakika sonra sınavın ritmine girdi. Kaygıyı yenmesi gereken bir düşman gibi değil, yönlendirebileceği güçlü bir duygu gibi görmeye başladı. Hazırlık ve doğru iç konuşma ona kontrol edebileceği küçük bir alan açmıştı."
+    ],
+    takeaway: "Amaç hiç heyecanlanmamak değil; heyecan geldiğinde bedenini sakinleştiren ve dikkatini yapabileceğin adıma taşıyan bir plan kullanmaktır."
+  },
+  9: {
+    title: "İpek’in görünmeyen boşlukları",
+    paragraphs: [
+      "İpek okuldan sonra hiçbir şeye zamanı kalmadığını söylüyordu. Eve geliyor, biraz dinleniyor, mesajlara bakıyor ve yemek yiyordu. Dersin başına oturduğunda saat ilerlemiş oluyor, uzun bir çalışma için geç kaldığını düşünüp erteliyordu. Günleri yoğun görünüyordu ama zamanın tam olarak nereye gittiğini bilmiyordu.",
+      "Bir gün yalnızca gözlem yapmak için okuldan uyuyana kadar yaptığı işleri saatleriyle yazdı. Telefonu kısa kısa kontrol ettiği zamanların toplamda bir saate yaklaştığını gördü. Ayrıca yemek öncesinde 25 dakikalık, akşam da 20 dakikalık iki boşluğu vardı. Bütün akşamı derse çevirmek yerine bu boşluklardan birini zorlandığı konuya ayırdı; diğerini dinlenme ve oyun için korudu.",
+      "İpek’in günü uzamamıştı, yine de önemli bir işi tamamlayabilmişti. Zaman yönetiminin her dakikayı doldurmak olmadığını anladı. Hangi saatlerde daha enerjik olduğunu bilmek, küçük boşlukları görmek ve eğlenceye de sınırı belli bir yer ayırmak gününü daha sakin hâle getiriyordu. ‘Vaktim yok.’ cümlesi yerini ‘Hangi küçük aralığı kullanabilirim?’ sorusuna bıraktı."
+    ],
+    takeaway: "Zamanı yönetmek daha çok saat bulmak değil; elindeki saatlerin nereye gittiğini görüp önemli işe gerçekçi bir yer açmaktır."
+  },
+  10: {
+    title: "Kerem’in belirsiz hedefi",
+    paragraphs: [
+      "Kerem her pazartesi ‘Bu hafta matematiğimi geliştireceğim.’ diyordu. Cümle ona iyi hissettiriyor fakat salı günü ne yapacağına karar veremiyordu. Bazen çok uzun bir test seçiyor, yarısında bırakıyordu. Hafta sonunda gelişip gelişmediğini anlayamıyor ve hedef koymanın kendisinde işe yaramadığını düşünüyordu.",
+      "Öğretmeni hedefini görünür ve ölçülebilir hâle getirmesini istedi. Kerem ‘Dört gün boyunca kesirlerden 15 soru çözeceğim ve yanlışlarımı defterime yazacağım.’ dedi. Günleri pazartesi, salı, perşembe ve cumartesi olarak seçti. Her çalışmanın yanına küçük bir kutu çizdi. İlk gün 15 soru fazla gelince hedefi 10 soruya küçülttü; hedefi bırakmak yerine uygulanabilir hâle getirdi.",
+      "Cumartesi günü dört kutudan üçünü işaretlemişti. Kusursuz bir hafta değildi ama elinde gerçek bir sonuç vardı: 30 soru, beş incelenmiş yanlış ve daha iyi anladığı bir konu. Kerem, hedefin kendisine verilen sert bir emir olmadığını fark etti. İyi hedef, ilerlemeyi görmesini sağlayan ve gerektiğinde yeniden düzenleyebildiği bir yön tabelasıydı."
+    ],
+    takeaway: "Güçlü hedef; ne yapacağını, ne kadar yapacağını, ne zaman yapacağını ve ilerlediğini nasıl anlayacağını açıkça söyler."
+  }
+};
 
 const MODULE_EXTRAS = {
   1: {
@@ -955,6 +1048,7 @@ function renderModuleDetail(moduleId) {
   const module = MODULES.find(item => item.id === Number(moduleId));
   if (!module) return navigate("modules");
   const extra = MODULE_EXTRAS[module.id];
+  const anecdote = MODULE_ANECDOTES[module.id];
   const answerRecord = state.answers[module.id]?.values || {};
   const savedChecks = state.checks[module.id] || [];
   const quizRecord = state.quizzes[module.id];
@@ -964,7 +1058,8 @@ function renderModuleDetail(moduleId) {
   const filledCount = module.fields.filter(field => String(answerRecord[field[0]] || "").trim()).length;
   const quizPoint = Number.isInteger(quizRecord?.selected) ? 1 : 0;
   const labPoint = state.completed[module.id] || Object.keys(activityRecord.choices || {}).length === ACTIVITY_LABS[module.id].items.length ? 1 : 0;
-  const progress = Math.round(((checkedCount + filledCount + quizPoint + labPoint) / (module.checks.length + module.fields.length + 2)) * 100);
+  const readingPoint = state.completed[module.id] || activityRecord.readingCompleted ? 1 : 0;
+  const progress = Math.round(((checkedCount + filledCount + quizPoint + labPoint + readingPoint) / (module.checks.length + module.fields.length + 3)) * 100);
 
   main.innerHTML = `<article class="module-detail">
     <button class="button ghost small back-button" type="button" data-action="back-modules">← Tüm modüller</button>
@@ -984,7 +1079,7 @@ function renderModuleDetail(moduleId) {
     <section class="content-section goal-box"><h3><span>🎯</span> Öğrenme hedefin</h3><p>${module.goal}</p></section>
     <section class="content-section"><h3><span>🧑‍🏫</span> Birlikte öğrenelim</h3><p>Bu beceriyi uygularken şu üç noktayı aklında tut:</p><div class="lesson-points">${module.lesson.map(point => `<div class="lesson-point"><span>${point[0]}</span><strong>${point[1]}</strong><p>${point[2]}</p></div>`).join("")}</div></section>
     <section class="content-section method-section"><div class="section-number">02</div><div class="section-copy"><span class="section-tag">UYGULAMA YÖNTEMİ</span><h3><span>🪜</span> Bu beceriyi 4 adımda kullan</h3><div class="method-steps">${extra.steps.map((step, index) => `<div class="method-step"><span>${index + 1}</span><p>${step}</p></div>`).join("")}</div></div></section>
-    <section class="content-section story-box"><h3><span>🎬</span> Günlük hayattan bir örnek</h3><p>${module.story}</p></section>
+    <section class="content-section story-box anecdote-box"><div class="anecdote-heading"><span class="anecdote-icon">📖</span><div><span class="section-tag">KISA BİR HİKÂYE, GÜÇLÜ BİR DERS</span><h3>${anecdote.title}</h3></div></div><div class="anecdote-body">${anecdote.paragraphs.map((paragraph, index) => `<p><span>${index + 1}</span>${paragraph}</p>`).join("")}</div><div class="anecdote-takeaway"><span>💡</span><p><strong>Bu hikâyenin bize söylediği:</strong>${anecdote.takeaway}</p></div></section>
     <div class="insight-grid">
       <section class="insight-card power"><span class="insight-icon">⚡</span><div><span class="section-tag">GÜÇLÜ İPUCU</span><h3>Bunu dene</h3><p>${extra.powerTip}</p></div></section>
       <section class="insight-card caution"><span class="insight-icon">⚠️</span><div><span class="section-tag">SIK YAPILAN HATA</span><h3>Buna dikkat et</h3><p>${extra.commonMistake}</p></div></section>
@@ -1000,6 +1095,7 @@ function renderModuleDetail(moduleId) {
       <section class="content-section"><h3><span>✅</span> Kontrol listem</h3><p style="color:var(--muted);margin-bottom:18px">Hazır olduğun maddeleri işaretle.</p><div class="check-list">
         ${module.checks.map((label, index) => `<label class="check-item"><input type="checkbox" name="check-${index}" ${savedChecks[index] ? "checked" : ""}><span>${label}</span></label>`).join("")}
       </div></section>
+      ${renderReadingMission(module.id)}
       <div id="module-message" class="helper-message" role="alert"></div>
       <div class="form-actions"><button class="button ghost" type="button" data-action="save-draft">Taslağı Kaydet</button><button class="button primary" type="submit">${state.completed[module.id] ? "Cevaplarımı Güncelle" : "Modülü Tamamla"} ✨</button></div>
     </form>
@@ -1008,6 +1104,21 @@ function renderModuleDetail(moduleId) {
       ${module.id < 10 ? `<button class="module-jump next" type="button" data-action="open-module" data-module-id="${module.id + 1}"><span>Sonraki modül →</span><strong>${MODULES[module.id].title}</strong></button>` : `<button class="module-jump next" type="button" data-page="badges"><span>Akademi sonucu →</span><strong>Rozetlerimi Gör</strong></button>`}
     </nav>
   </article>`;
+}
+
+function renderReadingMission(moduleId) {
+  const record = state.activities[moduleId] || {};
+  const completed = Boolean(record.readingCompleted);
+  return `<section class="reading-mission ${completed ? "completed" : ""}" id="reading-mission-${moduleId}">
+    <div class="reading-mission-visual"><span>5</span><small>PARAGRAF</small><i>📚</i></div>
+    <div class="reading-mission-content">
+      <span class="section-tag">MODÜL SONU OKUMA GÖREVİ</span>
+      <h3>Şimdi okuma kasını çalıştır</h3>
+      <p>Okuma Atölyesi’ni yeni sekmede aç. İstediğin türü ve konuyu seçerek toplam <strong>5 paragrafı</strong> dikkatle oku. Her paragraftan sonra kısa bir an dur ve “Bu paragraf bana ne anlattı?” diye düşün.</p>
+      <ol><li>Okuma Atölyesi’nde istediğin metni seç.</li><li>Acele etmeden 5 paragraf oku.</li><li>Bu modüle geri dön ve aşağıdaki kutuyu işaretle.</li></ol>
+      <div class="reading-mission-actions"><a class="button reading-launch" href="https://okumaatolyesi.netlify.app/" target="_blank" rel="noopener noreferrer" data-action="visit-reading-workshop" data-module-id="${moduleId}">Okuma Atölyesi’ni Aç <span>↗</span></a><label class="reading-confirmation"><input type="checkbox" data-reading-complete data-module-id="${moduleId}" ${completed ? "checked" : ""}><span><b>${completed ? "5 paragrafı okudum ✓" : "5 paragrafı okudum"}</b><small>${completed && record.readingCompletedAt ? `${formatDate(record.readingCompletedAt)} tarihinde tamamlandı.` : "Okumadan döndüğünde burayı işaretle."}</small></span></label></div>
+    </div>
+  </section>`;
 }
 
 function renderInteractiveLab(moduleId) {
@@ -1100,6 +1211,11 @@ function completeModule(form) {
   if (!Number.isInteger(state.quizzes[module.id]?.selected)) {
     showModuleMessage("Modülü tamamlamadan önce mini bilgi kontrolündeki seçeneklerden birini denemeni rica ediyorum.");
     document.querySelector(`#module-quiz-${module.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    return;
+  }
+  if (!state.completed[module.id] && !state.activities[module.id]?.readingCompleted) {
+    showModuleMessage("Modülü tamamlamadan önce Okuma Atölyesi’nde 5 paragraf okuyup modül sonundaki ‘Okudum’ kutusunu işaretlemeni rica ediyorum.");
+    document.querySelector(`#reading-mission-${module.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
     return;
   }
   state.answers[module.id] = { values, savedAt: new Date().toISOString() };
@@ -1392,6 +1508,7 @@ function renderTeacherStudentDetail(studentId) {
   const payload = progress.payload || {};
   const completedIds = Object.keys(payload.completed || {}).map(Number);
   const activityCount = Object.values(payload.activities || {}).filter(record => Object.keys(record.choices || {}).length > 0).length;
+  const readingCount = Object.values(payload.activities || {}).filter(record => record.readingCompleted).length;
   const answeredModules = Object.entries(payload.answers || {}).sort((a, b) => new Date(b[1]?.savedAt || 0) - new Date(a[1]?.savedAt || 0));
   const activityEntries = Object.entries(payload.activities || {}).filter(([, record]) => Object.keys(record.choices || {}).length > 0);
   const plan = Array.isArray(payload.plan) ? payload.plan : [];
@@ -1400,7 +1517,8 @@ function renderTeacherStudentDetail(studentId) {
   teacherContent.insertAdjacentHTML("beforeend", `<div class="teacher-modal" id="teacher-student-modal"><div class="teacher-modal-backdrop" data-action="close-student-detail"></div><article class="student-detail-sheet">
     <header class="student-detail-header"><div class="student-detail-identity"><span>${escapeHTML(student.name.charAt(0).toLocaleUpperCase("tr-TR"))}</span><div><small>ÖĞRENCİ GELİŞİM DOSYASI</small><h2>${escapeHTML(student.name)}</h2><p>Son güncelleme: ${progress.last_activity ? formatDate(progress.last_activity) : "Henüz çalışma yok"}</p></div></div><button class="modal-close" type="button" data-action="close-student-detail" aria-label="Kapat">×</button></header>
     <div class="student-detail-body">
-      <div class="student-detail-stats"><div><span>Tamamlanan modül</span><strong>${completedIds.length} / 10</strong></div><div><span>Haftalık plan</span><strong>%${Number(progress.plan_percent || 0)}</strong></div><div><span>Yanıtlanan uygulama</span><strong>${answeredModules.length}</strong></div><div><span>Etkileşimli atölye</span><strong>${activityEntries.length}</strong></div></div>
+      <div class="student-detail-stats"><div><span>Tamamlanan modül</span><strong>${completedIds.length} / 10</strong></div><div><span>Haftalık plan</span><strong>%${Number(progress.plan_percent || 0)}</strong></div><div><span>Yanıtlanan uygulama</span><strong>${answeredModules.length}</strong></div><div><span>Etkileşimli atölye</span><strong>${activityEntries.length}</strong></div><div><span>5 paragraf görevi</span><strong>${readingCount} / 10</strong></div></div>
+      <section class="detail-section teacher-reading-section"><div class="detail-title"><div><span class="section-tag">OKUMA ATÖLYESİ</span><h3>5 paragraflık okuma görevleri</h3></div><strong>${readingCount}/10 tamamlandı</strong></div><div class="teacher-reading-grid">${MODULES.map(module => { const done = Boolean(payload.activities?.[module.id]?.readingCompleted); return `<div class="teacher-reading-item ${done ? "done" : ""}"><span>${done ? "✓" : module.id}</span><div><small>${module.id}. MODÜL</small><strong>${module.title}</strong></div></div>`; }).join("")}</div></section>
       <section class="detail-section"><div class="detail-title"><div><span class="section-tag">MODÜLLER</span><h3>Beceri gelişimi</h3></div></div><div class="detail-module-grid">${MODULES.map(module => `<div class="detail-module ${completedIds.includes(module.id) ? "done" : answeredModules.some(([id]) => Number(id) === module.id) ? "progress" : ""}"><span>${completedIds.includes(module.id) ? "✓" : module.icon}</span><div><small>${module.id}. Hafta</small><strong>${module.title}</strong></div></div>`).join("")}</div></section>
       <section class="detail-section"><div class="detail-title"><div><span class="section-tag">ETKİLEŞİMLİ ATÖLYELER</span><h3>Karar, güven ve görev takibi</h3></div></div>${activityEntries.length ? `<div class="teacher-activity-list">${activityEntries.map(([id, record]) => {
         const lab = ACTIVITY_LABS[id];
@@ -1446,6 +1564,7 @@ function buildRemoteStudentReport(student) {
   const payload = progress.payload || {};
   const completedIds = Object.keys(payload.completed || {}).map(Number);
   const activityCount = Object.values(payload.activities || {}).filter(record => Object.keys(record.choices || {}).length > 0).length;
+  const readingCount = Object.values(payload.activities || {}).filter(record => record.readingCompleted).length;
   const answers = Object.entries(payload.answers || {}).sort((a, b) => new Date(b[1]?.savedAt || 0) - new Date(a[1]?.savedAt || 0));
   const lastAnswer = answers[0];
   let lastAnswerText = "Henüz uygulama cevabı yok.";
@@ -1453,7 +1572,7 @@ function buildRemoteStudentReport(student) {
     const module = MODULES.find(item => item.id === Number(lastAnswer[0]));
     lastAnswerText = `${module?.title || "Modül"}\n${module?.fields.filter(field => lastAnswer[1].values?.[field[0]]).map(field => `${field[1]} ${lastAnswer[1].values[field[0]]}`).join("\n") || ""}`;
   }
-  return `VERİMLİ DERS ÇALIŞMA AKADEMİSİ\nÖĞRETMEN GELİŞİM RAPORU\n\nÖğrenci: ${student.name}\nTarih: ${new Intl.DateTimeFormat("tr-TR").format(new Date())}\nTamamlanan modül: ${completedIds.length} / 10\nEtkileşimli atölye: ${activityCount} / 10\nHaftalık plan: %${Number(progress.plan_percent || 0)}\nSon etkinlik: ${progress.last_activity ? formatDate(progress.last_activity) : "Henüz yok"}\n\nTamamlanan modüller:\n${completedIds.length ? completedIds.map(id => `${id}. ${MODULES.find(module => module.id === id)?.title || ""}`).join("\n") : "Henüz yok"}\n\nSon uygulama:\n${lastAnswerText}`;
+  return `VERİMLİ DERS ÇALIŞMA AKADEMİSİ\nÖĞRETMEN GELİŞİM RAPORU\n\nÖğrenci: ${student.name}\nTarih: ${new Intl.DateTimeFormat("tr-TR").format(new Date())}\nTamamlanan modül: ${completedIds.length} / 10\nEtkileşimli atölye: ${activityCount} / 10\n5 paragraflık okuma görevi: ${readingCount} / 10\nHaftalık plan: %${Number(progress.plan_percent || 0)}\nSon etkinlik: ${progress.last_activity ? formatDate(progress.last_activity) : "Henüz yok"}\n\nTamamlanan modüller:\n${completedIds.length ? completedIds.map(id => `${id}. ${MODULES.find(module => module.id === id)?.title || ""}`).join("\n") : "Henüz yok"}\n\nSon uygulama:\n${lastAnswerText}`;
 }
 
 async function createTeacherClass(form) {
@@ -1621,7 +1740,8 @@ function updateModuleProgressFromState(moduleId) {
   const checked = (state.checks[moduleId] || []).filter(Boolean).length;
   const quizPoint = Number.isInteger(state.quizzes[moduleId]?.selected) ? 1 : 0;
   const labPoint = state.completed[moduleId] || Object.keys(state.activities[moduleId]?.choices || {}).length === ACTIVITY_LABS[moduleId].items.length ? 1 : 0;
-  const progress = Math.round(((filled + checked + quizPoint + labPoint) / (module.fields.length + module.checks.length + 2)) * 100);
+  const readingPoint = state.completed[moduleId] || state.activities[moduleId]?.readingCompleted ? 1 : 0;
+  const progress = Math.round(((filled + checked + quizPoint + labPoint + readingPoint) / (module.fields.length + module.checks.length + 3)) * 100);
   const progressFill = document.querySelector(".module-progress .progress-fill");
   const progressValue = document.querySelector(".module-progress .progress-line strong");
   if (progressFill) progressFill.style.width = `${progress}%`;
@@ -1665,6 +1785,25 @@ function saveActivityReflection(moduleId) {
   showToast("Etkinlik düşüncen kaydedildi. ✨");
 }
 
+function handleReadingWorkshopVisit(moduleId) {
+  const record = ensureActivityRecord(moduleId);
+  record.readingVisitedAt = new Date().toISOString();
+  record.updatedAt = record.readingVisitedAt;
+  saveData(STORAGE_KEYS.activities, state.activities);
+}
+
+function handleReadingCompletion(moduleId, completed) {
+  const record = ensureActivityRecord(moduleId);
+  record.readingCompleted = completed;
+  record.readingCompletedAt = completed ? new Date().toISOString() : null;
+  record.updatedAt = new Date().toISOString();
+  saveData(STORAGE_KEYS.activities, state.activities);
+  const currentMission = document.querySelector(`#reading-mission-${moduleId}`);
+  if (currentMission) currentMission.outerHTML = renderReadingMission(moduleId);
+  updateModuleProgressFromState(moduleId);
+  showToast(completed ? "5 paragraflık okuma görevini tamamladın. Harika! 📚" : "Okuma işaretini kaldırdın. Hazır olduğunda yeniden tamamlayabilirsin.", completed ? "success" : "error");
+}
+
 document.addEventListener("click", event => {
   const authTab = event.target.closest("[data-auth-tab]");
   if (authTab) {
@@ -1701,6 +1840,7 @@ document.addEventListener("click", event => {
   else if (action === "activity-confidence") handleActivityConfidence(Number(actionButton.dataset.moduleId), actionButton.dataset.stage, Number(actionButton.dataset.value));
   else if (action === "activity-day") handleActivityDay(Number(actionButton.dataset.moduleId), Number(actionButton.dataset.dayIndex));
   else if (action === "save-activity-reflection") saveActivityReflection(Number(actionButton.dataset.moduleId));
+  else if (action === "visit-reading-workshop") handleReadingWorkshopVisit(Number(actionButton.dataset.moduleId));
   else if (action === "save-draft") {
     const form = document.querySelector("#module-form");
     if (saveModuleDraft(form)) {
@@ -1802,6 +1942,10 @@ document.addEventListener("input", event => {
 });
 
 document.addEventListener("change", event => {
+  if (event.target.matches("[data-reading-complete]")) {
+    handleReadingCompletion(Number(event.target.dataset.moduleId), event.target.checked);
+    return;
+  }
   if (event.target.matches('#plan-form input[type="checkbox"]')) {
     event.target.closest("tr").classList.toggle("done", event.target.checked);
   }
