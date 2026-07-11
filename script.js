@@ -40,7 +40,8 @@ const STORAGE_KEYS = {
 const DAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
 const PREVIEW_BLOCKED_ACTIONS = new Set([
   "quiz-option", "activity-choice", "activity-confidence", "activity-day",
-  "save-activity-reflection", "visit-reading-workshop", "save-draft", "clear-plan", "select-theme", "reset-data"
+  "save-activity-reflection", "visit-reading-workshop", "save-draft", "add-plan-task", "remove-plan-task",
+  "clear-plan", "select-theme", "reset-data"
 ]);
 
 const TEACHER_TIPS = [
@@ -505,7 +506,7 @@ const state = {
   answers: loadData(STORAGE_KEYS.answers, {}),
   checks: loadData(STORAGE_KEYS.checks, {}),
   completed: loadData(STORAGE_KEYS.completed, {}),
-  plan: loadData(STORAGE_KEYS.plan, createEmptyPlan()),
+  plan: normalizePlan(loadData(STORAGE_KEYS.plan, createEmptyPlan())),
   quizzes: loadData(STORAGE_KEYS.quizzes, {}),
   activities: loadData(STORAGE_KEYS.activities, {})
 };
@@ -543,8 +544,33 @@ function saveData(key, value) {
   }
 }
 
+function createPlanItem(day) {
+  const id = globalThis.crypto?.randomUUID?.() || `plan-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  return { id, day, subject: "", topic: "", duration: "", breakDuration: "5", done: false, note: "" };
+}
+
 function createEmptyPlan() {
-  return DAYS.map(day => ({ day, subject: "", topic: "", duration: "", done: false, note: "" }));
+  return DAYS.map(day => createPlanItem(day));
+}
+
+function normalizePlan(plan) {
+  const source = Array.isArray(plan) ? plan : [];
+  const normalized = source
+    .filter(item => item && DAYS.includes(item.day))
+    .map(item => ({
+      id: item.id || (globalThis.crypto?.randomUUID?.() || `plan-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`),
+      day: item.day,
+      subject: String(item.subject || ""),
+      topic: String(item.topic || ""),
+      duration: String(item.duration || ""),
+      breakDuration: String(item.breakDuration ?? "5"),
+      done: Boolean(item.done),
+      note: String(item.note || "")
+    }));
+  DAYS.forEach(day => {
+    if (!normalized.some(item => item.day === day)) normalized.push(createPlanItem(day));
+  });
+  return normalized.sort((a, b) => DAYS.indexOf(a.day) - DAYS.indexOf(b.day));
 }
 
 function escapeHTML(value = "") {
@@ -590,7 +616,9 @@ function getPlanStats() {
   const planned = state.plan.filter(item => item.subject.trim() || item.topic.trim() || String(item.duration).trim());
   const completed = planned.filter(item => item.done);
   const minutes = planned.reduce((sum, item) => sum + (Number(item.duration) || 0), 0);
-  return { planned: planned.length, completed: completed.length, minutes, percent: planned.length ? Math.round((completed.length / planned.length) * 100) : 0 };
+  const breakMinutes = planned.reduce((sum, item) => sum + (Number(item.breakDuration) || 0), 0);
+  const plannedDays = new Set(planned.map(item => item.day)).size;
+  return { planned: planned.length, plannedDays, completed: completed.length, minutes, breakMinutes, percent: planned.length ? Math.round((completed.length / planned.length) * 100) : 0 };
 }
 
 function getModuleStatus(moduleId) {
@@ -671,7 +699,7 @@ function applyRemotePayload(payload, studentName, keepLocalWhenRemoteEmpty = fal
     state.answers = payload.answers || {};
     state.checks = payload.checks || {};
     state.completed = payload.completed || {};
-    state.plan = Array.isArray(payload.plan) && payload.plan.length === 7 ? payload.plan : createEmptyPlan();
+    state.plan = normalizePlan(payload.plan);
     state.quizzes = payload.quizzes || {};
     state.activities = payload.activities || {};
   } else if (!keepLocalWhenRemoteEmpty) {
@@ -694,7 +722,7 @@ function applyPreviewPayload(payload, studentName) {
   state.answers = previewPayload.answers || {};
   state.checks = previewPayload.checks || {};
   state.completed = previewPayload.completed || {};
-  state.plan = Array.isArray(previewPayload.plan) && previewPayload.plan.length === 7 ? previewPayload.plan : createEmptyPlan();
+  state.plan = normalizePlan(previewPayload.plan);
   state.quizzes = previewPayload.quizzes || {};
   state.activities = previewPayload.activities || {};
   state.settings.studentName = studentName || state.settings.studentName;
@@ -711,6 +739,8 @@ function enforceStudentPreviewReadOnly() {
     '[data-action="activity-day"]',
     '[data-action="save-activity-reflection"]',
     '[data-action="save-draft"]',
+    '[data-action="add-plan-task"]',
+    '[data-action="remove-plan-task"]',
     '[data-action="clear-plan"]',
     '[data-action="select-theme"]',
     '[data-action="reset-data"]'
@@ -1237,38 +1267,92 @@ function showModuleMessage(message) {
 
 function renderPlan() {
   const stats = getPlanStats();
+  const dayIcons = ["🌱", "⚡", "🧠", "🎯", "✨", "🌤️", "🌿"];
   main.innerHTML = `
-    <section class="page-intro"><div><h2>Haftanı küçük adımlarla planla</h2><p>Her güne yalnızca uygulayabileceğin kadar görev ekle. Planın sana yardımcı olmalı; seni yormamalı.</p></div><div class="intro-icon" aria-hidden="true">🗓️</div></section>
+    <section class="page-intro"><div><h2>Her güne istediğin kadar görev ekle</h2><p>Aynı gün içinde birden fazla derse çalışabilirsin. Her dersin arasına kısa bir mola koy; bir görevi bitirince diğerine geç.</p></div><div class="intro-icon" aria-hidden="true">🗓️</div></section>
     <section class="plan-coach">
       <div><span class="section-tag">PLANLAMA ASİSTANI</span><h3>Dengeli bir hafta için 3 küçük kural</h3></div>
-      <div class="plan-rule"><span>01</span><p><strong>Tek göreve odaklan</strong>Bir güne çok sayıda konu eklemek yerine önceliğini seç.</p></div>
-      <div class="plan-rule"><span>02</span><p><strong>25 + 5 ritmi</strong>25 dakika odaklan, ardından 5 dakika kısa mola ver.</p></div>
-      <div class="plan-rule"><span>03</span><p><strong>Boşluk bırak</strong>Haftanın her gününü doldurmak zorunda değilsin.</p></div>
+      <div class="plan-rule"><span>01</span><p><strong>Sırayla ilerle</strong>Üç ders ekleyebilirsin; aynı anda değil, birini bitirip diğerine geç.</p></div>
+      <div class="plan-rule"><span>02</span><p><strong>Dersler arasına mola koy</strong>25–30 dakika çalıştıktan sonra 5–10 dakika dinlen.</p></div>
+      <div class="plan-rule"><span>03</span><p><strong>Gerçekçi kal</strong>Yorucu bir güne daha az, rahat bir güne daha çok görev ekleyebilirsin.</p></div>
     </section>
     <div class="plan-summary">
-      <div class="mini-stat"><span>Planlanan gün</span><strong>${stats.planned} / 7</strong></div>
-      <div class="mini-stat"><span>Tamamlanan görev</span><strong>${stats.completed}</strong></div>
+      <div class="mini-stat"><span>Planlanan gün</span><strong>${stats.plannedDays} / 7</strong></div>
+      <div class="mini-stat"><span>Tamamlanan görev</span><strong>${stats.completed} / ${stats.planned}</strong></div>
+      <div class="mini-stat"><span>Çalışma + mola</span><strong>${stats.minutes} + ${stats.breakMinutes} dk.</strong></div>
       <div class="mini-stat"><span>Haftalık ilerleme</span><strong>%${stats.percent}</strong></div>
     </div>
     <div class="progress-line"><span>Plan tamamlanma durumu</span><strong>%${stats.percent}</strong></div><div class="progress-track" style="margin-bottom:18px"><div class="progress-fill" style="width:${stats.percent}%"></div></div>
     <form id="plan-form" novalidate>
-      <div class="table-wrap"><table class="plan-table"><thead><tr><th>Gün</th><th>Çalışılacak ders</th><th>Konu</th><th>Süre (dk.)</th><th>Tamamlandı</th><th>Kısa not</th></tr></thead><tbody>
-        ${state.plan.map((item, index) => `<tr class="${item.done ? "done" : ""}"><td class="day-cell">${item.day}</td><td><input aria-label="${item.day} çalışılacak ders" name="subject-${index}" value="${escapeHTML(item.subject)}" placeholder="Ders"></td><td><input aria-label="${item.day} konu" name="topic-${index}" value="${escapeHTML(item.topic)}" placeholder="Konu"></td><td><input aria-label="${item.day} süre" name="duration-${index}" type="number" min="0" inputmode="numeric" value="${escapeHTML(item.duration)}" placeholder="30"></td><td style="text-align:center"><input aria-label="${item.day} görevi tamamlandı" name="done-${index}" type="checkbox" ${item.done ? "checked" : ""}></td><td><textarea aria-label="${item.day} kısa not" name="note-${index}" placeholder="Küçük bir not">${escapeHTML(item.note)}</textarea></td></tr>`).join("")}
-      </tbody></table></div>
+      <div class="week-plan-board">${DAYS.map((day, dayIndex) => {
+        const items = state.plan.filter(item => item.day === day);
+        const activeItems = items.filter(isPlanItemActive);
+        const completedItems = activeItems.filter(item => item.done).length;
+        const totalMinutes = activeItems.reduce((sum, item) => sum + (Number(item.duration) || 0), 0);
+        return `<section class="plan-day-card day-${dayIndex + 1}" data-plan-day="${day}">
+          <header class="plan-day-header"><div class="plan-day-identity"><span>${dayIcons[dayIndex]}</span><div><small>${dayIndex + 1}. GÜN</small><h3>${day}</h3></div></div><div class="plan-day-summary"><span>${activeItems.length} görev</span><span>${totalMinutes} dk.</span><strong>${completedItems}/${activeItems.length || 0} tamamlandı</strong></div></header>
+          <div class="plan-task-list">${items.length ? items.map((item, itemIndex) => renderPlanTask(item, itemIndex)).join("") : `<div class="plan-day-empty"><span>☕</span><p>Bu gün için henüz görev yok. Dinlenebilir ya da yeni bir ders ekleyebilirsin.</p></div>`}</div>
+          <button class="add-plan-task" type="button" data-action="add-plan-task" data-day="${day}"><span>＋</span> ${day} gününe ders ekle</button>
+        </section>`;
+      }).join("")}</div>
       <div id="plan-message" class="helper-message" role="alert" style="margin-top:14px"></div>
       <div class="plan-actions"><button class="button ghost" type="button" data-action="clear-plan">Planı Temizle</button><button class="button primary" type="submit">Haftalık Planı Kaydet ✓</button></div>
     </form>`;
 }
 
-function savePlan(form) {
-  const nextPlan = DAYS.map((day, index) => ({
-    day,
-    subject: form.elements[`subject-${index}`].value.trim(),
-    topic: form.elements[`topic-${index}`].value.trim(),
-    duration: form.elements[`duration-${index}`].value.trim(),
-    done: form.elements[`done-${index}`].checked,
-    note: form.elements[`note-${index}`].value.trim()
+function renderPlanTask(item, itemIndex) {
+  return `<article class="plan-task-card ${item.done ? "done" : ""}" data-plan-task data-plan-id="${escapeHTML(item.id)}" data-day="${escapeHTML(item.day)}">
+    <header class="plan-task-header"><div><span>${item.done ? "✓" : itemIndex + 1}</span><strong>${itemIndex + 1}. çalışma görevi</strong></div><label class="plan-done-toggle"><input type="checkbox" data-plan-field="done" aria-label="${escapeHTML(item.day)} ${itemIndex + 1}. görev tamamlandı" ${item.done ? "checked" : ""}><span>${item.done ? "Tamamlandı" : "Tamamla"}</span></label><button class="remove-plan-task" type="button" data-action="remove-plan-task" data-plan-id="${escapeHTML(item.id)}" aria-label="${escapeHTML(item.day)} ${itemIndex + 1}. görevi sil" title="Görevi sil">×</button></header>
+    <div class="plan-task-fields">
+      <label class="plan-field subject"><span>Çalışılacak ders</span><input data-plan-field="subject" value="${escapeHTML(item.subject)}" placeholder="Örnek: Türkçe" autocomplete="off"></label>
+      <label class="plan-field topic"><span>Konu veya görev</span><input data-plan-field="topic" value="${escapeHTML(item.topic)}" placeholder="Örnek: 20 paragraf sorusu" autocomplete="off"></label>
+      <label class="plan-field duration"><span>Çalışma</span><div class="input-suffix"><input data-plan-field="duration" type="number" min="5" max="300" inputmode="numeric" value="${escapeHTML(item.duration)}" placeholder="30"><b>dk.</b></div></label>
+      <label class="plan-field break"><span>Sonraki mola</span><div class="input-suffix"><input data-plan-field="breakDuration" type="number" min="0" max="120" inputmode="numeric" value="${escapeHTML(item.breakDuration)}" placeholder="5"><b>dk.</b></div></label>
+      <label class="plan-field note"><span>Kısa not</span><textarea data-plan-field="note" placeholder="Kaynak, sayfa veya kendine bir hatırlatma…">${escapeHTML(item.note)}</textarea></label>
+    </div>
+  </article>`;
+}
+
+function isPlanItemActive(item) {
+  return Boolean(item.subject.trim() || item.topic.trim() || String(item.duration).trim() || item.note.trim() || item.done);
+}
+
+function readPlanForm(form = document.querySelector("#plan-form")) {
+  if (!form) return state.plan;
+  return Array.from(form.querySelectorAll("[data-plan-task]")).map(card => ({
+    id: card.dataset.planId,
+    day: card.dataset.day,
+    subject: card.querySelector('[data-plan-field="subject"]').value.trim(),
+    topic: card.querySelector('[data-plan-field="topic"]').value.trim(),
+    duration: card.querySelector('[data-plan-field="duration"]').value.trim(),
+    breakDuration: card.querySelector('[data-plan-field="breakDuration"]').value.trim(),
+    done: card.querySelector('[data-plan-field="done"]').checked,
+    note: card.querySelector('[data-plan-field="note"]').value.trim()
   }));
+}
+
+function addPlanTask(day) {
+  state.plan = readPlanForm();
+  const newItem = createPlanItem(day);
+  state.plan.push(newItem);
+  state.plan.sort((a, b) => DAYS.indexOf(a.day) - DAYS.indexOf(b.day));
+  renderPlan();
+  document.querySelector(`[data-plan-id="${newItem.id}"] [data-plan-field="subject"]`)?.focus();
+}
+
+function removePlanTask(planId) {
+  state.plan = readPlanForm();
+  const item = state.plan.find(planItem => planItem.id === planId);
+  if (!item) return;
+  if (isPlanItemActive(item) && !window.confirm(`${item.day} günündeki bu görevi silmek istediğine emin misin?`)) return;
+  state.plan = state.plan.filter(planItem => planItem.id !== planId);
+  saveData(STORAGE_KEYS.plan, state.plan);
+  renderPlan();
+  showToast("Görev plandan kaldırıldı.");
+}
+
+function savePlan(form) {
+  const nextPlan = readPlanForm(form);
   const activeRows = nextPlan.filter(item => item.subject || item.topic || item.duration || item.note || item.done);
   const message = document.querySelector("#plan-message");
   if (!activeRows.length) {
@@ -1278,13 +1362,19 @@ function savePlan(form) {
   }
   const incompleteRow = activeRows.find(item => !item.subject || !item.topic || !item.duration);
   if (incompleteRow) {
-    message.textContent = `${incompleteRow.day} için ders, konu ve süre alanlarını birlikte doldurabilir misin?`;
+    message.textContent = `${incompleteRow.day} günündeki görev için ders, konu ve çalışma süresini birlikte doldurabilir misin?`;
     message.classList.add("show");
     return;
   }
-  state.plan = nextPlan;
+  const invalidDuration = activeRows.find(item => Number(item.duration) < 5 || Number(item.duration) > 300 || Number(item.breakDuration || 0) < 0 || Number(item.breakDuration || 0) > 120);
+  if (invalidDuration) {
+    message.textContent = `${invalidDuration.day} için çalışma süresi 5–300, mola süresi 0–120 dakika arasında olmalı.`;
+    message.classList.add("show");
+    return;
+  }
+  state.plan = activeRows;
   saveData(STORAGE_KEYS.plan, state.plan);
-  showToast("Haftalık planın kaydedildi. Küçük adımların hazır! 🗓️");
+  showToast(`${activeRows.length} görevden oluşan haftalık planın kaydedildi. 🗓️`);
   renderPlan();
 }
 
@@ -1533,7 +1623,7 @@ function renderTeacherStudentDetail(studentId) {
         const answers = module.fields.filter(field => record.values?.[field[0]]).map(field => `<div><small>${field[1]}</small><p>${escapeHTML(record.values[field[0]])}</p></div>`).join("");
         return `<details><summary><span>${module.icon}</span><div><small>${module.id}. MODÜL</small><strong>${module.title}</strong></div><b>＋</b></summary><div class="answer-detail">${answers}</div></details>`;
       }).join("")}</div>` : `<div class="empty-mini wide">Öğrenci henüz bir uygulama cevabı kaydetmedi.</div>`}</section>
-      <section class="detail-section"><div class="detail-title"><div><span class="section-tag">HAFTALIK PLAN</span><h3>Planlanan çalışmalar</h3></div></div>${plannedItems.length ? `<div class="detail-plan-list">${plannedItems.map(item => `<div class="detail-plan-item ${item.done ? "done" : ""}"><span>${item.done ? "✓" : item.day.slice(0, 2)}</span><div><strong>${escapeHTML(item.subject)} • ${escapeHTML(item.topic)}</strong><small>${escapeHTML(item.day)} • ${escapeHTML(item.duration)} dakika${item.note ? ` • ${escapeHTML(item.note)}` : ""}</small></div></div>`).join("")}</div>` : `<div class="empty-mini wide">Öğrenci henüz haftalık plan oluşturmadı.</div>`}</section>
+      <section class="detail-section"><div class="detail-title"><div><span class="section-tag">HAFTALIK PLAN</span><h3>Planlanan çalışmalar</h3></div></div>${plannedItems.length ? `<div class="detail-plan-list">${plannedItems.map(item => `<div class="detail-plan-item ${item.done ? "done" : ""}"><span>${item.done ? "✓" : item.day.slice(0, 2)}</span><div><strong>${escapeHTML(item.subject)} • ${escapeHTML(item.topic)}</strong><small>${escapeHTML(item.day)} • ${escapeHTML(item.duration)} dakika çalışma${Number(item.breakDuration) ? ` • ${escapeHTML(item.breakDuration)} dakika mola` : ""}${item.note ? ` • ${escapeHTML(item.note)}` : ""}</small></div></div>`).join("")}</div>` : `<div class="empty-mini wide">Öğrenci henüz haftalık plan oluşturmadı.</div>`}</section>
     </div>
     <footer class="student-detail-footer"><button class="button ghost" type="button" data-action="close-student-detail">Kapat</button><button class="button preview-launch" type="button" data-action="preview-student" data-student-id="${student.id}">👁️ Öğrenci Panelini Aç</button><button class="button secondary" type="button" data-action="manage-student" data-student-id="${student.id}">✏️ Öğrenciyi Düzenle</button><button class="button primary" type="button" data-action="copy-remote-report" data-student-id="${student.id}">📋 Öğrenci Raporunu Kopyala</button></footer>
   </article></div>`);
@@ -1848,6 +1938,8 @@ document.addEventListener("click", event => {
       renderModuleDetail(Number(form.dataset.moduleId));
     }
   }
+  else if (action === "add-plan-task") addPlanTask(actionButton.dataset.day);
+  else if (action === "remove-plan-task") removePlanTask(actionButton.dataset.planId);
   else if (action === "clear-plan") {
     if (window.confirm("Haftalık planındaki tüm alanları temizlemek istediğine emin misin?")) {
       state.plan = createEmptyPlan();
@@ -1946,8 +2038,21 @@ document.addEventListener("change", event => {
     handleReadingCompletion(Number(event.target.dataset.moduleId), event.target.checked);
     return;
   }
-  if (event.target.matches('#plan-form input[type="checkbox"]')) {
-    event.target.closest("tr").classList.toggle("done", event.target.checked);
+  if (event.target.matches('#plan-form [data-plan-field="done"]')) {
+    const card = event.target.closest("[data-plan-task]");
+    const subject = card.querySelector('[data-plan-field="subject"]').value.trim();
+    const topic = card.querySelector('[data-plan-field="topic"]').value.trim();
+    const duration = Number(card.querySelector('[data-plan-field="duration"]').value);
+    if (event.target.checked && (!subject || !topic || duration < 5)) {
+      event.target.checked = false;
+      showToast("Görevi tamamlamadan önce ders, konu ve çalışma süresini doldurabilirsin.", "error");
+      return;
+    }
+    const isCompleted = event.target.checked;
+    state.plan = readPlanForm();
+    saveData(STORAGE_KEYS.plan, state.plan);
+    renderPlan();
+    showToast(isCompleted ? "Görev tamamlandı olarak kaydedildi. Harika! ✓" : "Görev yeniden devam ediyor olarak işaretlendi.");
   }
 });
 
