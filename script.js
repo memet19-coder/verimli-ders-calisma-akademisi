@@ -22,6 +22,8 @@ const cloudClient = isCloudConfigured && window.supabase
 
 let cloudSession = null;
 let cloudSyncTimer = null;
+let studentPreviewMode = false;
+let previewStudentRecord = null;
 let teacherStore = { classes: [], students: [], activeClassId: null, selectedStudentId: null };
 
 const STORAGE_KEYS = {
@@ -36,6 +38,10 @@ const STORAGE_KEYS = {
 };
 
 const DAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
+const PREVIEW_BLOCKED_ACTIONS = new Set([
+  "quiz-option", "activity-choice", "activity-confidence", "activity-day",
+  "save-activity-reflection", "save-draft", "clear-plan", "select-theme", "reset-data"
+]);
 
 const TEACHER_TIPS = [
   "Her gün aynı saatte çalışmak alışkanlık kazandırır.",
@@ -589,6 +595,77 @@ function applyRemotePayload(payload, studentName, keepLocalWhenRemoteEmpty = fal
   return hasRemoteWork;
 }
 
+function applyPreviewPayload(payload, studentName) {
+  const previewPayload = payload && typeof payload === "object" ? payload : {};
+  state.settings = { studentName: "", dailyGoal: 30, theme: "blue", ...(previewPayload.settings || {}) };
+  state.answers = previewPayload.answers || {};
+  state.checks = previewPayload.checks || {};
+  state.completed = previewPayload.completed || {};
+  state.plan = Array.isArray(previewPayload.plan) && previewPayload.plan.length === 7 ? previewPayload.plan : createEmptyPlan();
+  state.quizzes = previewPayload.quizzes || {};
+  state.activities = previewPayload.activities || {};
+  state.settings.studentName = studentName || state.settings.studentName;
+}
+
+function enforceStudentPreviewReadOnly() {
+  if (!studentPreviewMode) return;
+  main.querySelectorAll("input, textarea, select").forEach(control => { control.disabled = true; });
+  main.querySelectorAll([
+    'button[type="submit"]',
+    '[data-action="quiz-option"]',
+    '[data-action="activity-choice"]',
+    '[data-action="activity-confidence"]',
+    '[data-action="activity-day"]',
+    '[data-action="save-activity-reflection"]',
+    '[data-action="save-draft"]',
+    '[data-action="clear-plan"]',
+    '[data-action="select-theme"]',
+    '[data-action="reset-data"]'
+  ].join(",")).forEach(button => { button.disabled = true; });
+  const logoutButton = document.querySelector('[data-action="student-logout"]');
+  if (logoutButton) logoutButton.hidden = true;
+  updateCloudStatus("preview", "Salt okunur öğrenci görünümü");
+}
+
+async function loadTeacherStudentPreview(studentId) {
+  showWorkspace("student");
+  main.innerHTML = `<div class="teacher-loading preview-loading"><span class="button-spinner dark"></span><strong>Öğrenci görünümü hazırlanıyor…</strong></div>`;
+  const { data, error } = await cloudClient
+    .from("students")
+    .select("id,class_id,name,code_hint,active,student_progress(payload,completed_count,plan_percent,last_activity,updated_at)")
+    .eq("id", studentId)
+    .eq("active", true)
+    .single();
+
+  if (error || !data) {
+    main.innerHTML = `<div class="teacher-error preview-error"><span>⚠️</span><h2>Öğrenci görünümü açılamadı</h2><p>Öğrencinin hâlâ sınıfta olduğunu kontrol edip yeniden deneyin.</p><button class="button primary" type="button" data-action="close-student-preview">Bu Sekmeyi Kapat</button></div>`;
+    return;
+  }
+
+  studentPreviewMode = true;
+  previewStudentRecord = data;
+  const progress = getStudentProgress(data);
+  applyPreviewPayload(progress.payload, data.name);
+  state.page = "home";
+  state.activeModule = null;
+  document.body.classList.add("student-preview-mode");
+  document.title = `${data.name} • Öğrenci Önizlemesi`;
+  document.querySelector("#student-app .app-main")?.insertAdjacentHTML("afterbegin", `<aside class="student-preview-banner" id="student-preview-banner"><div><span>👁️</span><p><strong>${escapeHTML(data.name)} olarak görüntülüyorsunuz</strong><small>Öğretmen hesabınız açık kalır. Bu ekranda değişiklik yapılamaz.</small></p></div><div><button class="button preview-refresh small" type="button" data-action="refresh-student-preview">↻ Verileri Yenile</button><button class="button preview-close small" type="button" data-action="close-student-preview">Sekmeyi Kapat</button></div></aside>`);
+  renderCurrentPage();
+}
+
+function openTeacherStudentPreview(studentId) {
+  const student = teacherStore.students.find(item => item.id === studentId);
+  if (!student) return;
+  const previewUrl = new URL(window.location.href);
+  previewUrl.search = "";
+  previewUrl.hash = "";
+  previewUrl.searchParams.set("student-preview", student.id);
+  const previewWindow = window.open(previewUrl.toString(), "_blank");
+  if (previewWindow) previewWindow.opener = null;
+  else showToast("Öğrenci görünümü açılamadı. Tarayıcınızda yeni sekme izni vermeyi deneyin.", "error");
+}
+
 function updateCloudStatus(status, label) {
   const element = document.querySelector("#cloud-sync-status");
   if (!element) return;
@@ -696,6 +773,18 @@ async function initializeApplication() {
     return;
   }
 
+  const previewStudentId = new URLSearchParams(window.location.search).get("student-preview");
+  if (previewStudentId) {
+    const { data: previewAuth } = await cloudClient.auth.getSession();
+    if (previewAuth.session && cloudSession?.role === "teacher") {
+      await loadTeacherStudentPreview(previewStudentId);
+      return;
+    }
+    setLoginMessage("teacher-login-message", "Öğrenci görünümünü açmak için önce öğretmen hesabınızla giriş yapın.");
+    document.querySelector('[data-auth-tab="teacher"]')?.click();
+    return;
+  }
+
   if (cloudSession?.role === "student") {
     if (!navigator.onLine) {
       showWorkspace("student");
@@ -740,6 +829,7 @@ function renderCurrentPage() {
   else if (state.page === "badges") renderBadges();
   else if (state.page === "tips") renderTips();
   else if (state.page === "settings") renderSettings();
+  enforceStudentPreviewReadOnly();
 }
 
 function renderHome() {
@@ -1281,7 +1371,7 @@ function renderTeacherStudentTable(students) {
   if (!students.length) return `<div class="teacher-empty-class compact"><span>👋</span><h2>Bu sınıf henüz boş</h2><p>“Öğrenci Ekle” düğmesiyle ilk öğrenci giriş kodunu oluşturabilirsiniz.</p></div>`;
   return `<div class="student-table-wrap"><table class="student-table"><thead><tr><th>Öğrenci</th><th>Giriş kodu</th><th>Modül ilerlemesi</th><th>Plan</th><th>Son çalışma</th><th></th></tr></thead><tbody>${students.map(student => {
     const progress = getStudentProgress(student);
-    return `<tr data-student-row data-search-name="${escapeHTML(student.name.toLocaleLowerCase("tr-TR"))}"><td><div class="student-name-cell"><span>${escapeHTML(student.name.charAt(0).toLocaleUpperCase("tr-TR"))}</span><div><strong>${escapeHTML(student.name)}</strong><small>${progress.last_activity ? "Aktif öğrenci" : "Henüz başlamadı"}</small></div></div></td><td><button class="code-chip" type="button" data-action="copy-student-code" data-code="${escapeHTML(student.code_hint)}">${escapeHTML(student.code_hint)} 📋</button></td><td><div class="table-progress"><div><i style="width:${Number(progress.completed_count || 0) * 10}%"></i></div><strong>${Number(progress.completed_count || 0)} / 10</strong></div></td><td><span class="percent-chip ${Number(progress.plan_percent || 0) >= 70 ? "good" : ""}">%${Number(progress.plan_percent || 0)}</span></td><td><span class="last-seen">${progress.last_activity ? formatRelativeDate(progress.last_activity) : "—"}</span></td><td><div class="row-actions"><button class="button ghost small" type="button" data-action="view-student" data-student-id="${student.id}">İncele →</button><button class="manage-student-button" type="button" data-action="manage-student" data-student-id="${student.id}" aria-label="${escapeHTML(student.name)} için düzenleme seçeneklerini aç" title="Öğrenciyi yönet">•••</button></div></td></tr>`;
+    return `<tr data-student-row data-search-name="${escapeHTML(student.name.toLocaleLowerCase("tr-TR"))}"><td><div class="student-name-cell"><span>${escapeHTML(student.name.charAt(0).toLocaleUpperCase("tr-TR"))}</span><div><strong>${escapeHTML(student.name)}</strong><small>${progress.last_activity ? "Aktif öğrenci" : "Henüz başlamadı"}</small></div></div></td><td><button class="code-chip" type="button" data-action="copy-student-code" data-code="${escapeHTML(student.code_hint)}">${escapeHTML(student.code_hint)} 📋</button></td><td><div class="table-progress"><div><i style="width:${Number(progress.completed_count || 0) * 10}%"></i></div><strong>${Number(progress.completed_count || 0)} / 10</strong></div></td><td><span class="percent-chip ${Number(progress.plan_percent || 0) >= 70 ? "good" : ""}">%${Number(progress.plan_percent || 0)}</span></td><td><span class="last-seen">${progress.last_activity ? formatRelativeDate(progress.last_activity) : "—"}</span></td><td><div class="row-actions"><button class="preview-student-button" type="button" data-action="preview-student" data-student-id="${student.id}" title="Öğrenci panelini yeni sekmede aç"><span>👁️</span> Görünüm</button><button class="button ghost small" type="button" data-action="view-student" data-student-id="${student.id}">İncele →</button><button class="manage-student-button" type="button" data-action="manage-student" data-student-id="${student.id}" aria-label="${escapeHTML(student.name)} için düzenleme seçeneklerini aç" title="Öğrenciyi yönet">•••</button></div></td></tr>`;
   }).join("")}</tbody></table></div>`;
 }
 
@@ -1327,7 +1417,7 @@ function renderTeacherStudentDetail(studentId) {
       }).join("")}</div>` : `<div class="empty-mini wide">Öğrenci henüz bir uygulama cevabı kaydetmedi.</div>`}</section>
       <section class="detail-section"><div class="detail-title"><div><span class="section-tag">HAFTALIK PLAN</span><h3>Planlanan çalışmalar</h3></div></div>${plannedItems.length ? `<div class="detail-plan-list">${plannedItems.map(item => `<div class="detail-plan-item ${item.done ? "done" : ""}"><span>${item.done ? "✓" : item.day.slice(0, 2)}</span><div><strong>${escapeHTML(item.subject)} • ${escapeHTML(item.topic)}</strong><small>${escapeHTML(item.day)} • ${escapeHTML(item.duration)} dakika${item.note ? ` • ${escapeHTML(item.note)}` : ""}</small></div></div>`).join("")}</div>` : `<div class="empty-mini wide">Öğrenci henüz haftalık plan oluşturmadı.</div>`}</section>
     </div>
-    <footer class="student-detail-footer"><button class="button ghost" type="button" data-action="close-student-detail">Kapat</button><button class="button secondary" type="button" data-action="manage-student" data-student-id="${student.id}">✏️ Öğrenciyi Düzenle</button><button class="button primary" type="button" data-action="copy-remote-report" data-student-id="${student.id}">📋 Öğrenci Raporunu Kopyala</button></footer>
+    <footer class="student-detail-footer"><button class="button ghost" type="button" data-action="close-student-detail">Kapat</button><button class="button preview-launch" type="button" data-action="preview-student" data-student-id="${student.id}">👁️ Öğrenci Panelini Aç</button><button class="button secondary" type="button" data-action="manage-student" data-student-id="${student.id}">✏️ Öğrenciyi Düzenle</button><button class="button primary" type="button" data-action="copy-remote-report" data-student-id="${student.id}">📋 Öğrenci Raporunu Kopyala</button></footer>
   </article></div>`);
 }
 
@@ -1599,6 +1689,11 @@ document.addEventListener("click", event => {
   if (!actionButton) return;
   const action = actionButton.dataset.action;
 
+  if (studentPreviewMode && PREVIEW_BLOCKED_ACTIONS.has(action)) {
+    showToast("Bu ekran öğretmen önizlemesidir. Öğrenci verilerinde değişiklik yapılamaz.", "error");
+    return;
+  }
+
   if (action === "open-module") navigate("modules", { moduleId: Number(actionButton.dataset.moduleId) });
   else if (action === "back-modules") navigate("modules");
   else if (action === "quiz-option") handleQuizAnswer(Number(actionButton.dataset.moduleId), Number(actionButton.dataset.optionIndex));
@@ -1656,6 +1751,7 @@ document.addEventListener("click", event => {
   }
   else if (action === "copy-class-code") copyText(actionButton.dataset.code, "Sınıf kodu kopyalandı. 📋");
   else if (action === "copy-student-code") copyText(actionButton.dataset.code, "Öğrenci kodu kopyalandı. 📋");
+  else if (action === "preview-student") openTeacherStudentPreview(actionButton.dataset.studentId);
   else if (action === "view-student") renderTeacherStudentDetail(actionButton.dataset.studentId);
   else if (action === "close-student-detail") document.querySelector("#teacher-student-modal")?.remove();
   else if (action === "manage-student") renderStudentManagementModal(actionButton.dataset.studentId);
@@ -1667,6 +1763,13 @@ document.addEventListener("click", event => {
   }
   else if (action === "reset-student-progress") resetTeacherStudentProgress(actionButton.dataset.studentId);
   else if (action === "delete-student") deleteTeacherStudent(actionButton.dataset.studentId);
+  else if (action === "refresh-student-preview") window.location.reload();
+  else if (action === "close-student-preview") {
+    window.close();
+    const cleanUrl = new URL(window.location.href);
+    cleanUrl.searchParams.delete("student-preview");
+    setTimeout(() => { if (!window.closed) window.location.replace(cleanUrl.toString()); }, 120);
+  }
   else if (action === "copy-remote-report") {
     const student = teacherStore.students.find(item => item.id === actionButton.dataset.studentId);
     if (student) copyText(buildRemoteStudentReport(student), `${student.name} için rapor kopyalandı. 📋`);
@@ -1675,6 +1778,10 @@ document.addEventListener("click", event => {
 
 document.addEventListener("submit", event => {
   event.preventDefault();
+  if (studentPreviewMode) {
+    showToast("Öğretmen önizlemesinde değişiklik kaydedilemez.", "error");
+    return;
+  }
   if (event.target.id === "module-form") completeModule(event.target);
   else if (event.target.id === "plan-form") savePlan(event.target);
   else if (event.target.id === "settings-form") saveSettings(event.target);
