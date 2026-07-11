@@ -41,7 +41,7 @@ const DAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartes
 const PREVIEW_BLOCKED_ACTIONS = new Set([
   "quiz-option", "activity-choice", "activity-confidence", "activity-day",
   "save-activity-reflection", "visit-reading-workshop", "save-draft", "add-plan-task", "remove-plan-task",
-  "clear-plan", "select-theme", "reset-data"
+  "clear-plan", "select-theme", "download-student-backup", "reset-data"
 ]);
 
 const TEACHER_TIPS = [
@@ -682,6 +682,109 @@ function buildStudentPayload() {
   };
 }
 
+function safeBackupName(value = "yedek") {
+  return String(value).toLocaleLowerCase("tr-TR").replace(/[^a-z0-9çğıöşü]+/gi, "-").replace(/^-|-$/g, "") || "yedek";
+}
+
+function createStudentBackup(studentName, payload, metadata = {}) {
+  return {
+    app: "Verimli Ders Çalışma Akademisi",
+    backupType: "student",
+    schemaVersion: 1,
+    exportedAt: new Date().toISOString(),
+    student: { name: studentName || "Öğrenci", ...metadata },
+    payload
+  };
+}
+
+function downloadJSONBackup(filename, content) {
+  const blob = new Blob([JSON.stringify(content, null, 2)], { type: "application/json;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function downloadCurrentStudentBackup() {
+  const studentName = cloudSession?.studentName || state.settings.studentName || "Öğrenci";
+  const backup = createStudentBackup(studentName, buildStudentPayload(), {
+    studentId: cloudSession?.studentId || null,
+    className: cloudSession?.className || null
+  });
+  const date = new Date().toISOString().slice(0, 10);
+  downloadJSONBackup(`vdca-${safeBackupName(studentName)}-${date}.json`, backup);
+  showToast("Çalışmalarının yedeği indirildi. Dosyayı güvenli bir yerde saklayabilirsin. 💾");
+}
+
+async function restoreCurrentStudentBackup(file) {
+  if (!file) return;
+  try {
+    const backup = JSON.parse(await file.text());
+    if (backup?.app !== "Verimli Ders Çalışma Akademisi" || backup?.backupType !== "student" || !backup.payload || typeof backup.payload !== "object") {
+      throw new Error("invalid-backup");
+    }
+    if (!window.confirm(`${backup.student?.name || "Öğrenci"} adına ait yedek, mevcut çalışmalarının üzerine yüklenecek. Devam etmek istiyor musun?`)) return;
+    applyRemotePayload(backup.payload, cloudSession?.studentName || state.settings.studentName || backup.student?.name, false);
+    state.plan = normalizePlan(state.plan);
+    persistStudentStateLocally();
+    scheduleStudentSync();
+    renderSettings();
+    showToast("Yedek başarıyla geri yüklendi ve çevrim içi hesaba kaydediliyor. ♻️");
+  } catch (error) {
+    showToast("Bu dosya geçerli bir Akademi öğrenci yedeği değil.", "error");
+  }
+}
+
+function downloadRemoteStudentBackup(studentId) {
+  const student = teacherStore.students.find(item => item.id === studentId);
+  if (!student) return;
+  const activeClass = teacherStore.classes.find(item => item.id === student.class_id);
+  const progress = getStudentProgress(student);
+  const backup = createStudentBackup(student.name, progress.payload || {}, {
+    studentId: student.id,
+    classId: student.class_id,
+    className: activeClass?.name || null,
+    completedCount: Number(progress.completed_count || 0),
+    planPercent: Number(progress.plan_percent || 0),
+    lastActivity: progress.last_activity || null
+  });
+  const date = new Date().toISOString().slice(0, 10);
+  downloadJSONBackup(`vdca-${safeBackupName(student.name)}-${date}.json`, backup);
+  showToast(`${student.name} için yedek dosyası indirildi. 💾`);
+}
+
+function downloadClassBackup(classId) {
+  const classRecord = teacherStore.classes.find(item => item.id === classId);
+  if (!classRecord) return;
+  const students = teacherStore.students.filter(item => item.class_id === classId).map(student => {
+    const progress = getStudentProgress(student);
+    return {
+      studentId: student.id,
+      name: student.name,
+      codeHint: student.code_hint,
+      completedCount: Number(progress.completed_count || 0),
+      planPercent: Number(progress.plan_percent || 0),
+      lastActivity: progress.last_activity || null,
+      payload: progress.payload || {}
+    };
+  });
+  const backup = {
+    app: "Verimli Ders Çalışma Akademisi",
+    backupType: "class",
+    schemaVersion: 1,
+    exportedAt: new Date().toISOString(),
+    class: { id: classRecord.id, name: classRecord.name, codeHint: classRecord.code_hint },
+    students
+  };
+  const date = new Date().toISOString().slice(0, 10);
+  downloadJSONBackup(`vdca-sinif-${safeBackupName(classRecord.name)}-${date}.json`, backup);
+  showToast(`${classRecord.name} sınıfındaki ${students.length} öğrencinin yedeği indirildi. 🗂️`);
+}
+
 function persistStudentStateLocally() {
   localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(state.settings));
   localStorage.setItem(STORAGE_KEYS.answers, JSON.stringify(state.answers));
@@ -743,6 +846,7 @@ function enforceStudentPreviewReadOnly() {
     '[data-action="remove-plan-task"]',
     '[data-action="clear-plan"]',
     '[data-action="select-theme"]',
+    '[data-action="download-student-backup"]',
     '[data-action="reset-data"]'
   ].join(",")).forEach(button => { button.disabled = true; });
   const logoutButton = document.querySelector('[data-action="student-logout"]');
@@ -1475,6 +1579,7 @@ function renderSettings() {
         </div></div>
         <input type="hidden" name="theme" value="${theme}"><button class="button primary" type="submit">Ayarları Kaydet ✓</button>
       </form>
+      <section class="panel backup-zone"><div class="backup-zone-icon">💾</div><div class="backup-zone-copy"><span class="section-tag">VERİLERİMİ KORU</span><h3>Çalışmalarını yedekle</h3><p>Modül cevapların, okuma görevlerin ve haftalık planın tek bir dosyada saklanır. Yedek dosyanı güvenli bir yerde tut.</p><small>Yedek dosyası kişisel çalışma bilgilerini içerir. Tanımadığın kişilerle paylaşma.</small></div><div class="backup-actions"><button class="button backup-download" type="button" data-action="download-student-backup">↓ Yedeğimi İndir</button><label class="button backup-restore" for="student-backup-file">↺ Yedekten Geri Yükle</label><input id="student-backup-file" class="backup-file-input" type="file" accept="application/json,.json" data-backup-import="student"></div></section>
       <section class="panel danger-zone"><h3>🧹 Yeni bir başlangıç</h3><p>Tüm modül cevaplarını, tamamlanma bilgilerini, planını ve ayarlarını bu cihazdan silebilirsin. Bu işlem geri alınamaz.</p><button class="button danger" type="button" data-action="reset-data">Tüm Verileri Sıfırla</button></section>
     </div>`;
 }
@@ -1555,7 +1660,7 @@ function renderTeacherDashboard() {
 
       <section class="teacher-main-panel">
         ${activeClass ? `
-          <div class="class-header"><div><span class="section-tag">AKTİF SINIF</span><h2>${escapeHTML(activeClass.name)}</h2><p>Öğrenciler giriş yaparken <strong>${escapeHTML(activeClass.code_hint)}</strong> sınıf kodunu kullanır.</p></div><button class="button secondary small" type="button" data-action="copy-class-code" data-code="${escapeHTML(activeClass.code_hint)}">📋 Sınıf Kodunu Kopyala</button></div>
+          <div class="class-header"><div><span class="section-tag">AKTİF SINIF</span><h2>${escapeHTML(activeClass.name)}</h2><p>Öğrenciler giriş yaparken <strong>${escapeHTML(activeClass.code_hint)}</strong> sınıf kodunu kullanır.</p></div><div class="class-header-actions"><button class="button backup-class small" type="button" data-action="backup-class" data-class-id="${activeClass.id}">💾 Sınıfı Yedekle</button><button class="button secondary small" type="button" data-action="copy-class-code" data-code="${escapeHTML(activeClass.code_hint)}">📋 Sınıf Kodunu Kopyala</button></div></div>
           <div class="teacher-toolbar"><label class="search-box"><span>⌕</span><input id="student-search" placeholder="Öğrenci ara…" autocomplete="off"></label><button class="button primary small" type="button" data-action="toggle-add-student">＋ Öğrenci Ekle</button></div>
           <form id="add-student-form" class="add-student-form" hidden novalidate>
             <div><span class="section-tag">YENİ ÖĞRENCİ</span><h3>Öğrenci giriş bilgisi oluştur</h3></div>
@@ -1625,7 +1730,7 @@ function renderTeacherStudentDetail(studentId) {
       }).join("")}</div>` : `<div class="empty-mini wide">Öğrenci henüz bir uygulama cevabı kaydetmedi.</div>`}</section>
       <section class="detail-section"><div class="detail-title"><div><span class="section-tag">HAFTALIK PLAN</span><h3>Planlanan çalışmalar</h3></div></div>${plannedItems.length ? `<div class="detail-plan-list">${plannedItems.map(item => `<div class="detail-plan-item ${item.done ? "done" : ""}"><span>${item.done ? "✓" : item.day.slice(0, 2)}</span><div><strong>${escapeHTML(item.subject)} • ${escapeHTML(item.topic)}</strong><small>${escapeHTML(item.day)} • ${escapeHTML(item.duration)} dakika çalışma${Number(item.breakDuration) ? ` • ${escapeHTML(item.breakDuration)} dakika mola` : ""}${item.note ? ` • ${escapeHTML(item.note)}` : ""}</small></div></div>`).join("")}</div>` : `<div class="empty-mini wide">Öğrenci henüz haftalık plan oluşturmadı.</div>`}</section>
     </div>
-    <footer class="student-detail-footer"><button class="button ghost" type="button" data-action="close-student-detail">Kapat</button><button class="button preview-launch" type="button" data-action="preview-student" data-student-id="${student.id}">👁️ Öğrenci Panelini Aç</button><button class="button secondary" type="button" data-action="manage-student" data-student-id="${student.id}">✏️ Öğrenciyi Düzenle</button><button class="button primary" type="button" data-action="copy-remote-report" data-student-id="${student.id}">📋 Öğrenci Raporunu Kopyala</button></footer>
+    <footer class="student-detail-footer"><button class="button ghost" type="button" data-action="close-student-detail">Kapat</button><button class="button student-backup-button" type="button" data-action="backup-remote-student" data-student-id="${student.id}">💾 Öğrenciyi Yedekle</button><button class="button preview-launch" type="button" data-action="preview-student" data-student-id="${student.id}">👁️ Öğrenci Panelini Aç</button><button class="button secondary" type="button" data-action="manage-student" data-student-id="${student.id}">✏️ Öğrenciyi Düzenle</button><button class="button primary" type="button" data-action="copy-remote-report" data-student-id="${student.id}">📋 Öğrenci Raporunu Kopyala</button></footer>
   </article></div>`);
 }
 
@@ -1950,6 +2055,7 @@ document.addEventListener("click", event => {
     }
   }
   else if (action === "copy-report") copyReport();
+  else if (action === "download-student-backup") downloadCurrentStudentBackup();
   else if (action === "share-whatsapp") window.open(`https://wa.me/?text=${encodeURIComponent(buildReportText())}`, "_blank", "noopener,noreferrer");
   else if (action === "share-email") window.location.href = `mailto:?subject=${encodeURIComponent("Verimli Ders Çalışma Akademisi - Gelişim Raporum")}&body=${encodeURIComponent(buildReportText())}`;
   else if (action === "select-theme") {
@@ -1982,7 +2088,9 @@ document.addEventListener("click", event => {
     form.elements.studentCode.value = `${namePart}-${Math.floor(1000 + Math.random() * 9000)}`;
   }
   else if (action === "copy-class-code") copyText(actionButton.dataset.code, "Sınıf kodu kopyalandı. 📋");
+  else if (action === "backup-class") downloadClassBackup(actionButton.dataset.classId);
   else if (action === "copy-student-code") copyText(actionButton.dataset.code, "Öğrenci kodu kopyalandı. 📋");
+  else if (action === "backup-remote-student") downloadRemoteStudentBackup(actionButton.dataset.studentId);
   else if (action === "preview-student") openTeacherStudentPreview(actionButton.dataset.studentId);
   else if (action === "view-student") renderTeacherStudentDetail(actionButton.dataset.studentId);
   else if (action === "close-student-detail") document.querySelector("#teacher-student-modal")?.remove();
@@ -2034,6 +2142,10 @@ document.addEventListener("input", event => {
 });
 
 document.addEventListener("change", event => {
+  if (event.target.matches('[data-backup-import="student"]')) {
+    restoreCurrentStudentBackup(event.target.files?.[0]).finally(() => { event.target.value = ""; });
+    return;
+  }
   if (event.target.matches("[data-reading-complete]")) {
     handleReadingCompletion(Number(event.target.dataset.moduleId), event.target.checked);
     return;
