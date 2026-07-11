@@ -535,6 +535,16 @@ a:focus-visible {
 .danger-zone { border-color: #f0d7dd; background: #fff9fa; }
 .danger-zone h3 { margin-top: 0; }
 .danger-zone p { color: var(--muted); font-size: 14px; }
+.backup-zone { grid-column: 1 / -1; display: grid; grid-template-columns: 64px 1fr auto; align-items: center; gap: 18px; border-color: #cfd8f7; background: linear-gradient(135deg, #f8faff, #f4f0ff); }
+.backup-zone-icon { display: grid; width: 60px; height: 60px; place-items: center; border: 1px solid #d8def5; border-radius: 19px; background: #fff; box-shadow: 0 9px 22px rgba(65,78,143,.1); font-size: 27px; }
+.backup-zone-copy h3 { margin: 3px 0 5px; font-size: 20px; }
+.backup-zone-copy p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.backup-zone-copy small { display: block; margin-top: 7px; color: #9a6b21; font-size: 9px; }
+.backup-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.backup-actions .button { min-height: 43px; white-space: nowrap; }
+.backup-download, .backup-class, .student-backup-button { color: #fff; border-color: #5f4abe; background: linear-gradient(135deg, #7658d4, #5267e8); box-shadow: 0 8px 20px rgba(92,74,181,.16); }
+.backup-restore { color: #523a9e; border-color: #d4c9f4; background: #fff; cursor: pointer; }
+.backup-file-input { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; pointer-events: none; }
 
 .empty-state { padding: 30px; border: 1px dashed #cfd4e1; border-radius: var(--radius-md); color: var(--muted); text-align: center; background: #fafbfe; }
 .empty-state span { display: block; margin-bottom: 8px; font-size: 38px; }
@@ -880,6 +890,7 @@ body {
 .class-header { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
 .class-header h2 { margin: 0; font-size: 25px; }
 .class-header p { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
+.class-header-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 .teacher-toolbar { display: flex; justify-content: space-between; gap: 12px; margin: 18px 0; }
 .search-box { display: flex; align-items: center; gap: 7px; width: min(350px, 100%); min-height: 42px; padding: 0 11px; border: 1px solid var(--line); border-radius: 12px; background: #fafbfe; }
 .search-box input { width: 100%; border: 0; outline: 0; background: transparent; font-size: 12px; }
@@ -986,7 +997,7 @@ body {
 .teacher-activity-metrics b { color: var(--primary-dark); font-size: 14px; }
 .teacher-activity-metrics small { font-size: 8px; }
 .teacher-activity-metrics em { color: var(--muted); font-size: 8px; font-style: normal; }
-.student-detail-footer { display: flex; justify-content: flex-end; gap: 9px; padding: 15px 26px; border-top: 1px solid var(--line); background: #fff; }
+.student-detail-footer { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 9px; padding: 15px 26px; border-top: 1px solid var(--line); background: #fff; }
 .management-modal { place-items: center; justify-items: center; padding: 22px; }
 .management-dialog { position: relative; z-index: 1; width: min(590px, 100%); max-height: calc(100vh - 44px); overflow-y: auto; border-radius: 24px; background: #fff; box-shadow: 0 28px 80px rgba(20,27,57,.25); animation: management-in .22s ease both; }
 @keyframes management-in { from { transform: translateY(14px) scale(.98); opacity: 0; } }
@@ -1040,6 +1051,8 @@ body {
   .hero { grid-template-columns: 1fr; }
   .hero-visual { display: none; }
   .dashboard-grid, .settings-layout { grid-template-columns: 1fr; }
+  .backup-zone { grid-template-columns: 54px 1fr; }
+  .backup-actions { grid-column: 1 / -1; justify-content: stretch; }
   .lesson-points { grid-template-columns: 1fr; }
   .skill-map { grid-template-columns: repeat(2, 1fr); }
   .score-card { max-width: 360px; }
@@ -1172,6 +1185,11 @@ body {
   .teacher-main-panel { padding: 16px; }
   .class-header, .teacher-toolbar { align-items: flex-start; flex-direction: column; }
   .class-header .button, .teacher-toolbar .button, .search-box { width: 100%; }
+  .class-header-actions { width: 100%; flex-direction: column; }
+  .backup-zone { display: block; padding: 20px; }
+  .backup-zone-icon { width: 48px; height: 48px; margin-bottom: 13px; border-radius: 15px; font-size: 22px; }
+  .backup-actions { display: grid; grid-template-columns: 1fr; margin-top: 16px; }
+  .backup-actions .button { width: 100%; text-align: center; }
   .add-student-form { grid-template-columns: 1fr; }
   .student-detail-sheet { width: 100vw; }
   .student-detail-header, .student-detail-body { padding-left: 16px; padding-right: 16px; }
