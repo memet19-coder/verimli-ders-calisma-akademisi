@@ -728,6 +728,24 @@ body {
 .cloud-sync-status.online i { background: var(--mint); box-shadow: 0 0 0 3px rgba(85,198,169,.16); }
 .cloud-sync-status.syncing i { background: var(--accent); animation: pulse-dot 1s ease infinite; }
 .cloud-sync-status.offline i { background: var(--pink); }
+.cloud-sync-status.preview { color: #6842c2; border-color: #d9cdf8; background: #f5f0ff; }
+.cloud-sync-status.preview i { background: #8b5edb; box-shadow: 0 0 0 3px rgba(139,94,219,.14); }
+
+.student-preview-banner { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 13px clamp(18px, 4vw, 44px); color: #fff; background: linear-gradient(110deg, #34256f, #6548cb 58%, #5267e8); box-shadow: 0 8px 26px rgba(54,38,117,.18); }
+.student-preview-banner > div { display: flex; align-items: center; gap: 10px; }
+.student-preview-banner > div:first-child > span { display: grid; width: 38px; height: 38px; flex: 0 0 38px; place-items: center; border: 1px solid rgba(255,255,255,.24); border-radius: 12px; background: rgba(255,255,255,.12); font-size: 18px; }
+.student-preview-banner p { margin: 0; }
+.student-preview-banner strong, .student-preview-banner small { display: block; }
+.student-preview-banner strong { font-size: 13px; }
+.student-preview-banner small { margin-top: 2px; color: rgba(255,255,255,.72); font-size: 10px; }
+.student-preview-banner .button { min-height: 34px; border-color: rgba(255,255,255,.3); color: #fff; box-shadow: none; }
+.student-preview-banner .preview-refresh { background: rgba(255,255,255,.12); }
+.student-preview-banner .preview-close { color: #3c2b7c; background: #fff; }
+.student-preview-mode #main-content :disabled { cursor: not-allowed; }
+.student-preview-mode #main-content input:disabled,
+.student-preview-mode #main-content textarea:disabled,
+.student-preview-mode #main-content select:disabled { color: var(--ink); opacity: .72; background: #f4f5fb; }
+.preview-loading, .preview-error { min-height: 70vh; }
 @keyframes pulse-dot { 50% { opacity: .35; } }
 .icon-button { display: grid; width: 39px; height: 39px; place-items: center; border: 1px solid var(--line); border-radius: 12px; background: #fff; cursor: pointer; }
 
@@ -806,7 +824,11 @@ body {
 .percent-chip { display: inline-block; min-width: 40px; padding: 4px 7px; border-radius: 999px; color: #8d631d; background: var(--accent-soft); text-align: center; font-weight: 850; }
 .percent-chip.good { color: #176b56; background: var(--mint-soft); }
 .last-seen { color: var(--muted); white-space: nowrap; }
-.row-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; min-width: 125px; }
+.row-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; min-width: 235px; }
+.preview-student-button { display: inline-flex; min-height: 36px; align-items: center; gap: 5px; padding: 0 10px; border: 1px solid #d9cdf8; border-radius: 11px; color: #6842c2; background: #f7f3ff; font-size: 10px; font-weight: 900; cursor: pointer; white-space: nowrap; }
+.preview-student-button:hover { border-color: #ae96ed; background: #eee7ff; transform: translateY(-1px); }
+.preview-launch { color: #fff; border-color: #7658d4; background: linear-gradient(135deg, #7658d4, #5267e8); box-shadow: 0 8px 20px rgba(99,74,191,.19); }
+.preview-launch:hover { transform: translateY(-1px); box-shadow: 0 11px 24px rgba(99,74,191,.24); }
 .manage-student-button { display: grid; width: 36px; height: 36px; place-items: center; border: 1px solid var(--line); border-radius: 11px; color: var(--muted); background: #fff; font-size: 14px; font-weight: 900; letter-spacing: 1px; cursor: pointer; }
 .manage-student-button:hover { color: var(--primary-dark); border-color: color-mix(in srgb, var(--primary) 30%, white); background: var(--primary-soft); }
 .teacher-empty-class { display: grid; min-height: 390px; place-items: center; align-content: center; color: var(--muted); text-align: center; }
@@ -938,6 +960,10 @@ body {
 }
 
 @media (max-width: 700px) {
+  .student-preview-banner { align-items: stretch; flex-direction: column; gap: 11px; padding: 14px 15px; }
+  .student-preview-banner > div:last-child { display: grid; grid-template-columns: 1fr 1fr; }
+  .student-preview-banner .button { width: 100%; padding-left: 8px; padding-right: 8px; font-size: 9px; }
+  .student-preview-banner small { font-size: 9px; }
   .topbar { min-height: 78px; padding: 14px 17px; }
   .eyebrow { display: none; }
   .topbar h1 { font-size: 21px; }
