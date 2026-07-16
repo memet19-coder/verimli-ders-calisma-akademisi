@@ -974,6 +974,20 @@ function openTeacherStudentPreview(studentId) {
   else showToast("Öğrenci görünümü açılamadı. Tarayıcınızda yeni sekme izni vermeyi deneyin.", "error");
 }
 
+async function returnToTeacherPanel() {
+  const cleanUrl = new URL(window.location.href);
+  cleanUrl.searchParams.delete("student-preview");
+  cleanUrl.hash = "";
+  window.history.replaceState({}, "", cleanUrl.toString());
+  studentPreviewMode = false;
+  previewStudentRecord = null;
+  document.body.classList.remove("student-preview-mode");
+  document.querySelector("#student-preview-banner")?.remove();
+  document.title = "Verimli Ders Çalışma Akademisi • Öğretmen Paneli";
+  showWorkspace("teacher");
+  await loadTeacherData();
+}
+
 function updateCloudStatus(status, label) {
   const element = document.querySelector("#cloud-sync-status");
   if (!element) return;
@@ -2247,12 +2261,7 @@ document.addEventListener("click", event => {
   else if (action === "reset-student-progress") resetTeacherStudentProgress(actionButton.dataset.studentId);
   else if (action === "delete-student") deleteTeacherStudent(actionButton.dataset.studentId);
   else if (action === "refresh-student-preview") window.location.reload();
-  else if (action === "close-student-preview") {
-    window.close();
-    const cleanUrl = new URL(window.location.href);
-    cleanUrl.searchParams.delete("student-preview");
-    setTimeout(() => { if (!window.closed) window.location.replace(cleanUrl.toString()); }, 120);
-  }
+  else if (action === "close-student-preview") returnToTeacherPanel();
   else if (action === "copy-remote-report") {
     const student = teacherStore.students.find(item => item.id === actionButton.dataset.studentId);
     if (student) copyText(buildRemoteStudentReport(student), `${student.name} için rapor kopyalandı. 📋`);
