@@ -865,7 +865,7 @@ async function loadTeacherStudentPreview(studentId) {
     .single();
 
   if (error || !data) {
-    main.innerHTML = `<div class="teacher-error preview-error"><span>⚠️</span><h2>Öğrenci görünümü açılamadı</h2><p>Öğrencinin hâlâ sınıfta olduğunu kontrol edip yeniden deneyin.</p><button class="button primary" type="button" data-action="close-student-preview">Bu Sekmeyi Kapat</button></div>`;
+    main.innerHTML = `<div class="teacher-error preview-error"><span>⚠️</span><h2>Öğrenci görünümü açılamadı</h2><p>Öğrencinin hâlâ sınıfta olduğunu kontrol edip yeniden deneyin.</p><button class="button primary" type="button" data-action="close-student-preview">← Öğretmen Paneline Dön</button></div>`;
     return;
   }
 
@@ -877,7 +877,7 @@ async function loadTeacherStudentPreview(studentId) {
   state.activeModule = null;
   document.body.classList.add("student-preview-mode");
   document.title = `${data.name} • Öğrenci Önizlemesi`;
-  document.querySelector("#student-app .app-main")?.insertAdjacentHTML("afterbegin", `<aside class="student-preview-banner" id="student-preview-banner"><div><span>👁️</span><p><strong>${escapeHTML(data.name)} olarak görüntülüyorsunuz</strong><small>Öğretmen hesabınız açık kalır. Bu ekranda değişiklik yapılamaz.</small></p></div><div><button class="button preview-refresh small" type="button" data-action="refresh-student-preview">↻ Verileri Yenile</button><button class="button preview-close small" type="button" data-action="close-student-preview">Sekmeyi Kapat</button></div></aside>`);
+  document.querySelector("#student-app .app-main")?.insertAdjacentHTML("afterbegin", `<aside class="student-preview-banner" id="student-preview-banner"><div><span>👁️</span><p><strong>${escapeHTML(data.name)} olarak görüntülüyorsunuz</strong><small>Öğretmen hesabınız açık kalır. Bu ekranda değişiklik yapılamaz.</small></p></div><div><button class="button preview-refresh small" type="button" data-action="refresh-student-preview">↻ Verileri Yenile</button><button class="button preview-close small" type="button" data-action="close-student-preview" title="Bu sekmeyi kapatıp öğretmen paneline dön">← Öğretmen Paneline Dön</button></div></aside>`);
   renderCurrentPage();
 }
 
