@@ -390,17 +390,34 @@ a:focus-visible {
 .reading-mission-visual > span { font-family: Georgia, "Times New Roman", serif; font-size: 62px; font-weight: 800; line-height: .9; }
 .reading-mission-visual small { margin-top: 6px; font-size: 9px; font-weight: 900; letter-spacing: .18em; }
 .reading-mission-visual i { margin-top: 22px; font-size: 32px; font-style: normal; }
+.reading-mission-visual b { margin-top: 11px; padding: 6px 10px; border: 1px solid rgba(255,255,255,.25); border-radius: 999px; background: rgba(255,255,255,.12); font-size: 10px; }
 .reading-mission-content { padding: clamp(23px, 4vw, 34px); }
 .reading-mission-content h3 { margin: 5px 0 10px; font-size: clamp(22px, 3vw, 28px); }
 .reading-mission-content > p { max-width: 760px; margin: 0; color: var(--muted); line-height: 1.72; }
 .reading-mission-content ol { display: grid; gap: 7px; margin: 17px 0 20px; padding-left: 22px; color: #45506b; font-size: 12px; }
 .reading-mission-content li::marker { color: var(--primary); font-weight: 900; }
+.reading-week-summary { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 18px; padding: 10px 13px; border-radius: 13px; color: #394563; background: #f2f4ff; font-size: 11px; }
+.reading-week-summary strong { color: var(--primary-dark); font-size: 13px; }
+.reading-week-grid { display: grid; grid-template-columns: repeat(7, minmax(74px, 1fr)); gap: 7px; margin-top: 9px; }
+.reading-day { display: grid; min-height: 82px; place-items: center; align-content: center; padding: 9px 5px; border: 1px solid var(--line); border-radius: 13px; color: var(--muted); background: #fafbfe; text-align: center; }
+.reading-day span, .reading-day strong, .reading-day small { display: block; }
+.reading-day span { font-size: 9px; font-weight: 900; text-transform: uppercase; }
+.reading-day strong { margin: 2px 0; color: var(--ink); font-size: 11px; }
+.reading-day small { font-size: 8px; font-weight: 800; }
+.reading-day.today { border-color: #8797f2; color: var(--primary-dark); background: #eef0ff; box-shadow: inset 0 0 0 1px rgba(82,103,232,.08); }
+.reading-day.done { border-color: #94d7c1; color: #237c62; background: #eefaf6; }
+.reading-day.done strong { color: #176b56; }
+.reading-day.missed { border-color: #f0d3db; color: #a8556b; background: #fff5f7; }
+.reading-day.locked { opacity: .64; }
 .reading-mission-actions { display: grid; grid-template-columns: minmax(220px, .72fr) 1.28fr; gap: 12px; align-items: stretch; }
 .reading-launch { justify-content: center; color: #fff; border-color: transparent; background: linear-gradient(135deg, #5267e8, #7658d4); box-shadow: 0 10px 24px rgba(82,103,232,.2); }
 .reading-launch:hover { transform: translateY(-1px); box-shadow: 0 14px 28px rgba(82,103,232,.26); }
-.reading-confirmation { display: flex; min-height: 54px; align-items: center; gap: 12px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 15px; background: #f8f9fd; cursor: pointer; }
-.reading-confirmation:has(input:checked) { border-color: #94d7c1; background: #eefaf6; }
-.reading-confirmation input { width: 21px; height: 21px; flex: 0 0 21px; accent-color: #2fa77f; }
+.reading-confirmation { display: flex; min-height: 54px; align-items: center; gap: 12px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 15px; color: var(--ink); background: #f8f9fd; text-align: left; cursor: pointer; }
+.reading-confirmation.done { border-color: #94d7c1; background: #eefaf6; }
+.reading-confirmation:disabled { cursor: not-allowed; opacity: .72; }
+.reading-confirmation.done:disabled { opacity: 1; }
+.reading-check { display: grid !important; width: 24px; height: 24px; flex: 0 0 24px; place-items: center; border: 2px solid #aab2c7; border-radius: 7px; color: #fff; font-size: 13px; font-weight: 900; }
+.reading-confirmation.done .reading-check { border-color: #2fa77f; background: #2fa77f; }
 .reading-confirmation span, .reading-confirmation b, .reading-confirmation small { display: block; }
 .reading-confirmation b { color: var(--ink); font-size: 12px; }
 .reading-confirmation small { margin-top: 2px; color: var(--muted); font-size: 9px; }
@@ -923,10 +940,14 @@ body {
 .code-input input { border-radius: 12px 0 0 12px !important; }
 .code-input button { padding: 0 11px; border: 1px solid #dce0eb; border-left: 0; border-radius: 0 12px 12px 0; color: var(--primary-dark); background: #fff; font-size: 10px; font-weight: 850; cursor: pointer; }
 .student-table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 15px; }
-.student-table { width: 100%; min-width: 800px; border-collapse: collapse; }
+.student-table { width: 100%; min-width: 960px; border-collapse: collapse; }
 .student-table th { padding: 11px; color: var(--muted); text-align: left; background: #f8f9fc; font-size: 9px; letter-spacing: .04em; text-transform: uppercase; }
 .student-table td { padding: 12px 10px; border-top: 1px solid var(--line); font-size: 11px; }
 .student-table tr:hover { background: #fbfcff; }
+.daily-status-stack { display: grid; gap: 4px; min-width: 76px; }
+.daily-status-stack span { display: block; padding: 4px 7px; border-radius: 999px; font-size: 8px; font-weight: 900; text-align: center; white-space: nowrap; }
+.daily-status-stack .yes { color: #176b56; background: #eaf8f3; }
+.daily-status-stack .no { color: #9a5266; background: #fff1f4; }
 .student-name-cell { display: flex; align-items: center; gap: 9px; min-width: 145px; }
 .student-name-cell > span { display: grid; width: 35px; height: 35px; flex: 0 0 35px; place-items: center; border-radius: 11px; color: var(--primary-dark); background: var(--primary-soft); font-weight: 900; }
 .student-name-cell strong, .student-name-cell small { display: block; }
@@ -980,6 +1001,19 @@ body {
 .teacher-reading-item strong { margin-top: 2px; font-size: 10px; }
 .teacher-reading-item.done { border-color: #a7ddcc; background: #effaf6; }
 .teacher-reading-item.done > span { color: #fff; background: #2fa77f; }
+.teacher-week-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; }
+.teacher-day-card { display: grid; grid-template-columns: 92px 1fr; gap: 12px; padding: 13px; border: 1px solid var(--line); border-radius: 14px; background: #fafbfe; }
+.teacher-day-card.today { border-color: #9eabf5; background: #f1f3ff; }
+.teacher-day-card.done { border-color: #a7ddcc; background: #effaf6; }
+.teacher-day-heading span, .teacher-day-heading strong, .teacher-day-heading small { display: block; }
+.teacher-day-heading span { color: var(--muted); font-size: 8px; font-weight: 900; text-transform: uppercase; }
+.teacher-day-heading strong { margin-top: 2px; font-size: 13px; }
+.teacher-day-heading small { margin-top: 5px; color: var(--primary); font-size: 7px; font-weight: 900; letter-spacing: .08em; }
+.teacher-day-signals { display: grid; gap: 5px; }
+.teacher-day-signals span { padding: 6px 8px; border-radius: 9px; font-size: 9px; font-weight: 800; }
+.teacher-day-signals .yes { color: #176b56; background: #dcf4eb; }
+.teacher-day-signals .no { color: #9a5266; background: #fff0f3; }
+.teacher-day-signals .waiting { color: #72798c; background: #eceff5; }
 .detail-module-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 13px; }
 .detail-module { display: flex; align-items: center; gap: 9px; padding: 9px; border: 1px solid var(--line); border-radius: 11px; color: var(--muted); }
 .detail-module > span { display: grid; width: 32px; height: 32px; flex: 0 0 32px; place-items: center; border-radius: 9px; background: #f0f2f6; }
@@ -1163,7 +1197,9 @@ body {
   .reading-mission-visual > span { font-size: 52px; }
   .reading-mission-visual small { margin: 0; }
   .reading-mission-visual i { grid-column: 1 / -1; margin-top: 4px; font-size: 25px; }
+  .reading-mission-visual b { grid-column: 1 / -1; margin-top: 2px; }
   .reading-mission-content { padding: 22px 18px; }
+  .reading-week-grid { grid-template-columns: repeat(2, 1fr); }
   .reading-mission-actions { grid-template-columns: 1fr; }
   .reading-launch { width: 100%; }
   .plan-coach { grid-template-columns: 1fr; }
@@ -1215,6 +1251,8 @@ body {
   .student-detail-header, .student-detail-body { padding-left: 16px; padding-right: 16px; }
   .student-detail-stats { grid-template-columns: 1fr; }
   .teacher-reading-grid { grid-template-columns: 1fr; }
+  .teacher-week-grid { grid-template-columns: 1fr; }
+  .teacher-day-card { grid-template-columns: 82px 1fr; }
   .teacher-activity-item { grid-template-columns: 35px 1fr; }
   .teacher-activity-metrics { grid-column: 2; text-align: left; }
   .detail-module-grid { grid-template-columns: 1fr; }
