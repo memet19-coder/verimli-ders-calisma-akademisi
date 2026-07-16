@@ -34,13 +34,15 @@ const STORAGE_KEYS = {
   plan: "vdca_weekly_plan",
   quizzes: "vdca_module_quizzes",
   activities: "vdca_module_activities",
+  attendance: "vdca_daily_attendance",
+  readingLog: "vdca_daily_reading_log",
   cloudSession: "vdca_cloud_session"
 };
 
 const DAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
 const PREVIEW_BLOCKED_ACTIONS = new Set([
   "quiz-option", "activity-choice", "activity-confidence", "activity-day",
-  "save-activity-reflection", "visit-reading-workshop", "save-draft", "add-plan-task", "remove-plan-task",
+  "save-activity-reflection", "visit-reading-workshop", "complete-daily-reading", "save-draft", "add-plan-task", "remove-plan-task",
   "clear-plan", "select-theme", "download-student-backup", "reset-data"
 ]);
 
@@ -508,7 +510,9 @@ const state = {
   completed: loadData(STORAGE_KEYS.completed, {}),
   plan: normalizePlan(loadData(STORAGE_KEYS.plan, createEmptyPlan())),
   quizzes: loadData(STORAGE_KEYS.quizzes, {}),
-  activities: loadData(STORAGE_KEYS.activities, {})
+  activities: loadData(STORAGE_KEYS.activities, {}),
+  attendance: loadData(STORAGE_KEYS.attendance, {}),
+  readingLog: loadData(STORAGE_KEYS.readingLog, {})
 };
 
 cloudSession = loadData(STORAGE_KEYS.cloudSession, null);
@@ -636,6 +640,72 @@ function formatDate(iso) {
   return new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "long", year: "numeric" }).format(new Date(iso));
 }
 
+function localDateKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getReadingWeek(referenceDate = new Date()) {
+  const today = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate());
+  const daysSinceThursday = (today.getDay() - 4 + 7) % 7;
+  const start = new Date(today);
+  start.setDate(today.getDate() - daysSinceThursday);
+  const days = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(start);
+    date.setDate(start.getDate() + index);
+    return { date, key: localDateKey(date) };
+  });
+  return { start, end: days[6].date, days, today, todayKey: localDateKey(today), weekKey: localDateKey(start) };
+}
+
+function formatReadingDay(date) {
+  return {
+    weekday: new Intl.DateTimeFormat("tr-TR", { weekday: "short" }).format(date).replace(".", ""),
+    date: new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "short" }).format(date).replace(".", "")
+  };
+}
+
+function isReadingEntryCompleted(entry) {
+  return Boolean(entry === true || entry?.completedAt);
+}
+
+function hasReadingForModule(moduleId, payload = state) {
+  if (payload.activities?.[moduleId]?.readingCompleted) return true;
+  return Object.values(payload.readingLog || {}).some(entry => isReadingEntryCompleted(entry) && Number(entry.moduleId) === Number(moduleId));
+}
+
+function getWeeklyTracking(payload = state) {
+  const week = getReadingWeek();
+  const attendance = payload.attendance || {};
+  const readingLog = payload.readingLog || {};
+  const days = week.days.map(day => ({
+    ...day,
+    login: Boolean(attendance[day.key]),
+    reading: isReadingEntryCompleted(readingLog[day.key]),
+    readingEntry: readingLog[day.key] || null
+  }));
+  return {
+    ...week,
+    days,
+    loginCount: days.filter(day => day.login).length,
+    readingCount: days.filter(day => day.reading).length
+  };
+}
+
+function recordDailyAttendance() {
+  if (studentPreviewMode || cloudSession?.role !== "student") return false;
+  const todayKey = localDateKey();
+  if (state.attendance[todayKey]) return false;
+  state.attendance[todayKey] = new Date().toISOString();
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 120);
+  Object.keys(state.attendance).forEach(key => { if (key < localDateKey(cutoff)) delete state.attendance[key]; });
+  persistStudentStateLocally();
+  return true;
+}
+
 function navigate(page, options = {}) {
   state.page = page;
   state.activeModule = options.moduleId || null;
@@ -671,14 +741,16 @@ function setFormBusy(form, busy, label) {
 
 function buildStudentPayload() {
   return {
-    version: 1,
+    version: 2,
     settings: state.settings,
     answers: state.answers,
     checks: state.checks,
     completed: state.completed,
     plan: state.plan,
     quizzes: state.quizzes,
-    activities: state.activities
+    activities: state.activities,
+    attendance: state.attendance,
+    readingLog: state.readingLog
   };
 }
 
@@ -793,6 +865,8 @@ function persistStudentStateLocally() {
   localStorage.setItem(STORAGE_KEYS.plan, JSON.stringify(state.plan));
   localStorage.setItem(STORAGE_KEYS.quizzes, JSON.stringify(state.quizzes));
   localStorage.setItem(STORAGE_KEYS.activities, JSON.stringify(state.activities));
+  localStorage.setItem(STORAGE_KEYS.attendance, JSON.stringify(state.attendance));
+  localStorage.setItem(STORAGE_KEYS.readingLog, JSON.stringify(state.readingLog));
 }
 
 function applyRemotePayload(payload, studentName, keepLocalWhenRemoteEmpty = false) {
@@ -805,6 +879,8 @@ function applyRemotePayload(payload, studentName, keepLocalWhenRemoteEmpty = fal
     state.plan = normalizePlan(payload.plan);
     state.quizzes = payload.quizzes || {};
     state.activities = payload.activities || {};
+    state.attendance = payload.attendance || {};
+    state.readingLog = payload.readingLog || {};
   } else if (!keepLocalWhenRemoteEmpty) {
     state.settings = { studentName: "", dailyGoal: 30, theme: "blue" };
     state.answers = {};
@@ -813,6 +889,8 @@ function applyRemotePayload(payload, studentName, keepLocalWhenRemoteEmpty = fal
     state.plan = createEmptyPlan();
     state.quizzes = {};
     state.activities = {};
+    state.attendance = {};
+    state.readingLog = {};
   }
   state.settings.studentName = studentName || state.settings.studentName;
   persistStudentStateLocally();
@@ -828,6 +906,8 @@ function applyPreviewPayload(payload, studentName) {
   state.plan = normalizePlan(previewPayload.plan);
   state.quizzes = previewPayload.quizzes || {};
   state.activities = previewPayload.activities || {};
+  state.attendance = previewPayload.attendance || {};
+  state.readingLog = previewPayload.readingLog || {};
   state.settings.studentName = studentName || state.settings.studentName;
 }
 
@@ -841,6 +921,7 @@ function enforceStudentPreviewReadOnly() {
     '[data-action="activity-confidence"]',
     '[data-action="activity-day"]',
     '[data-action="save-activity-reflection"]',
+    '[data-action="complete-daily-reading"]',
     '[data-action="save-draft"]',
     '[data-action="add-plan-task"]',
     '[data-action="remove-plan-task"]',
@@ -956,12 +1037,12 @@ async function handleStudentLogin(form) {
   const sameStudent = cloudSession?.role === "student" && cloudSession.studentId === data.studentId;
   cloudSession = { role: "student", classCode, studentCode, studentId: data.studentId, studentName: data.studentName, className: data.className };
   localStorage.setItem(STORAGE_KEYS.cloudSession, JSON.stringify(cloudSession));
-  const remoteLoaded = applyRemotePayload(data.payload, data.studentName, sameStudent);
+  applyRemotePayload(data.payload, data.studentName, sameStudent);
+  recordDailyAttendance();
   showWorkspace("student");
   state.page = "home";
   renderCurrentPage();
-  updateCloudStatus("online", "Tüm değişiklikler kaydedildi");
-  if (!remoteLoaded) scheduleStudentSync();
+  await synchronizeStudent();
   showToast(`Hoş geldin ${data.studentName}! Çalışmaların artık öğretmeninle eş zamanlanıyor. 🌟`);
 }
 
@@ -1014,6 +1095,7 @@ async function initializeApplication() {
 
   if (cloudSession?.role === "student") {
     if (!navigator.onLine) {
+      recordDailyAttendance();
       showWorkspace("student");
       renderCurrentPage();
       updateCloudStatus("offline", "Çevrim dışı • yerel kayıt");
@@ -1026,9 +1108,10 @@ async function initializeApplication() {
     });
     if (!error && data) {
       applyRemotePayload(data.payload, data.studentName, true);
+      recordDailyAttendance();
       showWorkspace("student");
       renderCurrentPage();
-      updateCloudStatus("online", "Tüm değişiklikler kaydedildi");
+      await synchronizeStudent();
       return;
     }
     localStorage.removeItem(STORAGE_KEYS.cloudSession);
@@ -1192,7 +1275,7 @@ function renderModuleDetail(moduleId) {
   const filledCount = module.fields.filter(field => String(answerRecord[field[0]] || "").trim()).length;
   const quizPoint = Number.isInteger(quizRecord?.selected) ? 1 : 0;
   const labPoint = state.completed[module.id] || Object.keys(activityRecord.choices || {}).length === ACTIVITY_LABS[module.id].items.length ? 1 : 0;
-  const readingPoint = state.completed[module.id] || activityRecord.readingCompleted ? 1 : 0;
+  const readingPoint = state.completed[module.id] || hasReadingForModule(module.id) ? 1 : 0;
   const progress = Math.round(((checkedCount + filledCount + quizPoint + labPoint + readingPoint) / (module.checks.length + module.fields.length + 3)) * 100);
 
   main.innerHTML = `<article class="module-detail">
@@ -1241,16 +1324,29 @@ function renderModuleDetail(moduleId) {
 }
 
 function renderReadingMission(moduleId) {
-  const record = state.activities[moduleId] || {};
-  const completed = Boolean(record.readingCompleted);
-  return `<section class="reading-mission ${completed ? "completed" : ""}" id="reading-mission-${moduleId}">
-    <div class="reading-mission-visual"><span>5</span><small>PARAGRAF</small><i>📚</i></div>
+  const tracking = getWeeklyTracking();
+  const todayEntry = state.readingLog[tracking.todayKey] || {};
+  const visitedToday = Boolean(todayEntry.visitedAt);
+  const completedToday = isReadingEntryCompleted(todayEntry);
+  const weekCompleted = tracking.readingCount === 7;
+  const rangeLabel = `${new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "long" }).format(tracking.start)} – ${new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "long" }).format(tracking.end)}`;
+  return `<section class="reading-mission ${completedToday ? "completed" : ""} ${weekCompleted ? "week-complete" : ""}" id="reading-mission-${moduleId}">
+    <div class="reading-mission-visual"><span>5</span><small>HER GÜN PARAGRAF</small><i>📚</i><b>${tracking.readingCount}/7 gün</b></div>
     <div class="reading-mission-content">
-      <span class="section-tag">MODÜL SONU OKUMA GÖREVİ</span>
-      <h3>Şimdi okuma kasını çalıştır</h3>
-      <p>Okuma Atölyesi’ni yeni sekmede aç. İstediğin türü ve konuyu seçerek toplam <strong>5 paragrafı</strong> dikkatle oku. Her paragraftan sonra kısa bir an dur ve “Bu paragraf bana ne anlattı?” diye düşün.</p>
-      <ol><li>Okuma Atölyesi’nde istediğin metni seç.</li><li>Acele etmeden 5 paragraf oku.</li><li>Bu modüle geri dön ve aşağıdaki kutuyu işaretle.</li></ol>
-      <div class="reading-mission-actions"><a class="button reading-launch" href="https://memet19-coder.github.io/okuma-takip-anlama-atolyesi/" target="_blank" rel="noopener noreferrer" data-action="visit-reading-workshop" data-module-id="${moduleId}">Okuma Atölyesi’ni Aç <span>↗</span></a><label class="reading-confirmation"><input type="checkbox" data-reading-complete data-module-id="${moduleId}" ${completed ? "checked" : ""}><span><b>${completed ? "5 paragrafı okudum ✓" : "5 paragrafı okudum"}</b><small>${completed && record.readingCompletedAt ? `${formatDate(record.readingCompletedAt)} tarihinde tamamlandı.` : "Okumadan döndüğünde burayı işaretle."}</small></span></label></div>
+      <span class="section-tag">PERŞEMBEDEN ÇARŞAMBAYA GÜNLÜK OKUMA</span>
+      <h3>Her gün 5 paragraf, küçük ama güçlü bir alışkanlık</h3>
+      <p><strong>${rangeLabel}</strong> tarihleri arasında her gün Okuma Atölyesi’ne girip <strong>5 paragraf</strong> oku. Yalnızca bugünün kaydı açılır; gelecek günler önceden, geçmiş günler ise sonradan işaretlenemez.</p>
+      <div class="reading-week-summary"><span>Bu haftaki ilerlemen</span><strong>${tracking.readingCount} / 7 gün</strong></div>
+      <div class="reading-week-grid">${tracking.days.map(day => {
+        const labels = formatReadingDay(day.date);
+        const isToday = day.key === tracking.todayKey;
+        const isPast = day.key < tracking.todayKey;
+        const status = day.reading ? "done" : isToday ? "today" : isPast ? "missed" : "locked";
+        const statusText = day.reading ? "✓ Okundu" : isToday ? "Bugün" : isPast ? "Kaçırıldı" : "Kilitli";
+        return `<div class="reading-day ${status}" aria-label="${escapeHTML(labels.weekday)} ${escapeHTML(labels.date)}: ${statusText}"><span>${escapeHTML(labels.weekday)}</span><strong>${escapeHTML(labels.date)}</strong><small>${statusText}</small></div>`;
+      }).join("")}</div>
+      <ol><li>“Bugünkü Okumayı Aç” düğmesiyle Okuma Atölyesi’ne git.</li><li>Acele etmeden 5 paragraf oku.</li><li>Uygulamaya dönüp yalnızca bugünün kaydını tamamla.</li></ol>
+      <div class="reading-mission-actions"><a class="button reading-launch" href="https://memet19-coder.github.io/okuma-takip-anlama-atolyesi/" target="_blank" rel="noopener noreferrer" data-action="visit-reading-workshop" data-module-id="${moduleId}">Bugünkü Okumayı Aç <span>↗</span></a><button class="reading-confirmation ${completedToday ? "done" : ""}" type="button" data-action="complete-daily-reading" data-module-id="${moduleId}" ${completedToday || !visitedToday ? "disabled" : ""}><span class="reading-check">${completedToday ? "✓" : "□"}</span><span><b>${completedToday ? "Bugünün 5 paragrafı tamamlandı" : visitedToday ? "5 paragrafı okudum" : "Önce Okuma Atölyesi’ni aç"}</b><small>${completedToday ? `${formatDate(todayEntry.completedAt)} tarihinde kaydedildi.` : visitedToday ? "Okumanı bitirdiysen bugünün kaydını tamamla." : "Düğme, Okuma Atölyesi’ni açtıktan sonra etkinleşir."}</small></span></button></div>
     </div>
   </section>`;
 }
@@ -1347,8 +1443,8 @@ function completeModule(form) {
     document.querySelector(`#module-quiz-${module.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
     return;
   }
-  if (!state.completed[module.id] && !state.activities[module.id]?.readingCompleted) {
-    showModuleMessage("Modülü tamamlamadan önce Okuma Atölyesi’nde 5 paragraf okuyup modül sonundaki ‘Okudum’ kutusunu işaretlemeni rica ediyorum.");
+  if (!state.completed[module.id] && !hasReadingForModule(module.id)) {
+    showModuleMessage("Modülü tamamlamadan önce bugünün Okuma Atölyesi görevinde 5 paragraf okuyup günlük kaydını tamamlamanı rica ediyorum.");
     document.querySelector(`#reading-mission-${module.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
     return;
   }
@@ -1632,7 +1728,9 @@ function renderTeacherDashboard() {
   const activeClass = teacherStore.classes.find(item => item.id === teacherStore.activeClassId) || null;
   const visibleStudents = activeClass ? teacherStore.students.filter(item => item.class_id === activeClass.id) : [];
   const allProgress = teacherStore.students.map(getStudentProgress);
-  const activeThisWeek = allProgress.filter(item => item.last_activity && (Date.now() - new Date(item.last_activity).getTime()) < 7 * 86400000).length;
+  const todayKey = localDateKey();
+  const loggedInToday = allProgress.filter(item => Boolean(item.payload?.attendance?.[todayKey])).length;
+  const readToday = allProgress.filter(item => isReadingEntryCompleted(item.payload?.readingLog?.[todayKey])).length;
   const averageModules = allProgress.length ? (allProgress.reduce((sum, item) => sum + Number(item.completed_count || 0), 0) / allProgress.length).toFixed(1) : "0";
   const averagePlan = allProgress.length ? Math.round(allProgress.reduce((sum, item) => sum + Number(item.plan_percent || 0), 0) / allProgress.length) : 0;
 
@@ -1643,7 +1741,7 @@ function renderTeacherDashboard() {
     </section>
     <div class="teacher-stat-grid">
       ${teacherStat("👥", "Toplam öğrenci", teacherStore.students.length, "Kayıtlı öğrenci")}
-      ${teacherStat("⚡", "Bu hafta aktif", activeThisWeek, "Son 7 gün")}
+      ${teacherStat("📖", "Bugünkü takip", `${loggedInToday} / ${readToday}`, "Giriş / 5 paragraf")}
       ${teacherStat("📚", "Ortalama modül", `${averageModules} / 10`, "Sınıf ortalaması")}
       ${teacherStat("🗓️", "Plan ortalaması", `%${averagePlan}`, "Haftalık tamamlama")}
     </div>
@@ -1680,9 +1778,12 @@ function teacherStat(icon, label, value, note) {
 
 function renderTeacherStudentTable(students) {
   if (!students.length) return `<div class="teacher-empty-class compact"><span>👋</span><h2>Bu sınıf henüz boş</h2><p>“Öğrenci Ekle” düğmesiyle ilk öğrenci giriş kodunu oluşturabilirsiniz.</p></div>`;
-  return `<div class="student-table-wrap"><table class="student-table"><thead><tr><th>Öğrenci</th><th>Giriş kodu</th><th>Modül ilerlemesi</th><th>Plan</th><th>Son çalışma</th><th></th></tr></thead><tbody>${students.map(student => {
+  const todayKey = localDateKey();
+  return `<div class="student-table-wrap"><table class="student-table"><thead><tr><th>Öğrenci</th><th>Giriş kodu</th><th>Modül ilerlemesi</th><th>Plan</th><th>Bugün</th><th>Son çalışma</th><th></th></tr></thead><tbody>${students.map(student => {
     const progress = getStudentProgress(student);
-    return `<tr data-student-row data-search-name="${escapeHTML(student.name.toLocaleLowerCase("tr-TR"))}"><td><div class="student-name-cell"><span>${escapeHTML(student.name.charAt(0).toLocaleUpperCase("tr-TR"))}</span><div><strong>${escapeHTML(student.name)}</strong><small>${progress.last_activity ? "Aktif öğrenci" : "Henüz başlamadı"}</small></div></div></td><td><button class="code-chip" type="button" data-action="copy-student-code" data-code="${escapeHTML(student.code_hint)}">${escapeHTML(student.code_hint)} 📋</button></td><td><div class="table-progress"><div><i style="width:${Number(progress.completed_count || 0) * 10}%"></i></div><strong>${Number(progress.completed_count || 0)} / 10</strong></div></td><td><span class="percent-chip ${Number(progress.plan_percent || 0) >= 70 ? "good" : ""}">%${Number(progress.plan_percent || 0)}</span></td><td><span class="last-seen">${progress.last_activity ? formatRelativeDate(progress.last_activity) : "—"}</span></td><td><div class="row-actions"><button class="preview-student-button" type="button" data-action="preview-student" data-student-id="${student.id}" title="Öğrenci panelini yeni sekmede aç"><span>👁️</span> Görünüm</button><button class="button ghost small" type="button" data-action="view-student" data-student-id="${student.id}">İncele →</button><button class="manage-student-button" type="button" data-action="manage-student" data-student-id="${student.id}" aria-label="${escapeHTML(student.name)} için düzenleme seçeneklerini aç" title="Öğrenciyi yönet">•••</button></div></td></tr>`;
+    const loggedIn = Boolean(progress.payload?.attendance?.[todayKey]);
+    const read = isReadingEntryCompleted(progress.payload?.readingLog?.[todayKey]);
+    return `<tr data-student-row data-search-name="${escapeHTML(student.name.toLocaleLowerCase("tr-TR"))}"><td><div class="student-name-cell"><span>${escapeHTML(student.name.charAt(0).toLocaleUpperCase("tr-TR"))}</span><div><strong>${escapeHTML(student.name)}</strong><small>${progress.last_activity ? "Aktif öğrenci" : "Henüz başlamadı"}</small></div></div></td><td><button class="code-chip" type="button" data-action="copy-student-code" data-code="${escapeHTML(student.code_hint)}">${escapeHTML(student.code_hint)} 📋</button></td><td><div class="table-progress"><div><i style="width:${Number(progress.completed_count || 0) * 10}%"></i></div><strong>${Number(progress.completed_count || 0)} / 10</strong></div></td><td><span class="percent-chip ${Number(progress.plan_percent || 0) >= 70 ? "good" : ""}">%${Number(progress.plan_percent || 0)}</span></td><td><div class="daily-status-stack"><span class="${loggedIn ? "yes" : "no"}">${loggedIn ? "✓ Giriş" : "— Giriş"}</span><span class="${read ? "yes" : "no"}">${read ? "✓ Okuma" : "— Okuma"}</span></div></td><td><span class="last-seen">${progress.last_activity ? formatRelativeDate(progress.last_activity) : "—"}</span></td><td><div class="row-actions"><button class="preview-student-button" type="button" data-action="preview-student" data-student-id="${student.id}" title="Öğrenci panelini yeni sekmede aç"><span>👁️</span> Görünüm</button><button class="button ghost small" type="button" data-action="view-student" data-student-id="${student.id}">İncele →</button><button class="manage-student-button" type="button" data-action="manage-student" data-student-id="${student.id}" aria-label="${escapeHTML(student.name)} için düzenleme seçeneklerini aç" title="Öğrenciyi yönet">•••</button></div></td></tr>`;
   }).join("")}</tbody></table></div>`;
 }
 
@@ -1703,7 +1804,8 @@ function renderTeacherStudentDetail(studentId) {
   const payload = progress.payload || {};
   const completedIds = Object.keys(payload.completed || {}).map(Number);
   const activityCount = Object.values(payload.activities || {}).filter(record => Object.keys(record.choices || {}).length > 0).length;
-  const readingCount = Object.values(payload.activities || {}).filter(record => record.readingCompleted).length;
+  const weeklyTracking = getWeeklyTracking(payload);
+  const readingCount = weeklyTracking.readingCount;
   const answeredModules = Object.entries(payload.answers || {}).sort((a, b) => new Date(b[1]?.savedAt || 0) - new Date(a[1]?.savedAt || 0));
   const activityEntries = Object.entries(payload.activities || {}).filter(([, record]) => Object.keys(record.choices || {}).length > 0);
   const plan = Array.isArray(payload.plan) ? payload.plan : [];
@@ -1712,8 +1814,13 @@ function renderTeacherStudentDetail(studentId) {
   teacherContent.insertAdjacentHTML("beforeend", `<div class="teacher-modal" id="teacher-student-modal"><div class="teacher-modal-backdrop" data-action="close-student-detail"></div><article class="student-detail-sheet">
     <header class="student-detail-header"><div class="student-detail-identity"><span>${escapeHTML(student.name.charAt(0).toLocaleUpperCase("tr-TR"))}</span><div><small>ÖĞRENCİ GELİŞİM DOSYASI</small><h2>${escapeHTML(student.name)}</h2><p>Son güncelleme: ${progress.last_activity ? formatDate(progress.last_activity) : "Henüz çalışma yok"}</p></div></div><button class="modal-close" type="button" data-action="close-student-detail" aria-label="Kapat">×</button></header>
     <div class="student-detail-body">
-      <div class="student-detail-stats"><div><span>Tamamlanan modül</span><strong>${completedIds.length} / 10</strong></div><div><span>Haftalık plan</span><strong>%${Number(progress.plan_percent || 0)}</strong></div><div><span>Yanıtlanan uygulama</span><strong>${answeredModules.length}</strong></div><div><span>Etkileşimli atölye</span><strong>${activityEntries.length}</strong></div><div><span>5 paragraf görevi</span><strong>${readingCount} / 10</strong></div></div>
-      <section class="detail-section teacher-reading-section"><div class="detail-title"><div><span class="section-tag">OKUMA ATÖLYESİ</span><h3>5 paragraflık okuma görevleri</h3></div><strong>${readingCount}/10 tamamlandı</strong></div><div class="teacher-reading-grid">${MODULES.map(module => { const done = Boolean(payload.activities?.[module.id]?.readingCompleted); return `<div class="teacher-reading-item ${done ? "done" : ""}"><span>${done ? "✓" : module.id}</span><div><small>${module.id}. MODÜL</small><strong>${module.title}</strong></div></div>`; }).join("")}</div></section>
+      <div class="student-detail-stats"><div><span>Tamamlanan modül</span><strong>${completedIds.length} / 10</strong></div><div><span>Haftalık plan</span><strong>%${Number(progress.plan_percent || 0)}</strong></div><div><span>Yanıtlanan uygulama</span><strong>${answeredModules.length}</strong></div><div><span>Haftalık giriş</span><strong>${weeklyTracking.loginCount} / 7</strong></div><div><span>Haftalık okuma</span><strong>${readingCount} / 7</strong></div></div>
+      <section class="detail-section teacher-reading-section"><div class="detail-title"><div><span class="section-tag">PERŞEMBE – ÇARŞAMBA</span><h3>Günlük giriş ve 5 paragraf takibi</h3></div><strong>${weeklyTracking.loginCount}/7 giriş • ${readingCount}/7 okuma</strong></div><div class="teacher-week-grid">${weeklyTracking.days.map(day => {
+        const labels = formatReadingDay(day.date);
+        const isToday = day.key === weeklyTracking.todayKey;
+        const isFuture = day.key > weeklyTracking.todayKey;
+        return `<article class="teacher-day-card ${isToday ? "today" : ""} ${day.reading ? "done" : ""}"><div class="teacher-day-heading"><span>${escapeHTML(labels.weekday)}</span><strong>${escapeHTML(labels.date)}</strong>${isToday ? "<small>BUGÜN</small>" : ""}</div><div class="teacher-day-signals"><span class="${day.login ? "yes" : isFuture ? "waiting" : "no"}">${day.login ? "✓ Giriş yaptı" : isFuture ? "• Bekleniyor" : "— Giriş yapmadı"}</span><span class="${day.reading ? "yes" : isFuture ? "waiting" : "no"}">${day.reading ? "✓ 5 paragraf okudu" : isFuture ? "• Okuma bekleniyor" : "— Okuma yapmadı"}</span></div></article>`;
+      }).join("")}</div></section>
       <section class="detail-section"><div class="detail-title"><div><span class="section-tag">MODÜLLER</span><h3>Beceri gelişimi</h3></div></div><div class="detail-module-grid">${MODULES.map(module => `<div class="detail-module ${completedIds.includes(module.id) ? "done" : answeredModules.some(([id]) => Number(id) === module.id) ? "progress" : ""}"><span>${completedIds.includes(module.id) ? "✓" : module.icon}</span><div><small>${module.id}. Hafta</small><strong>${module.title}</strong></div></div>`).join("")}</div></section>
       <section class="detail-section"><div class="detail-title"><div><span class="section-tag">ETKİLEŞİMLİ ATÖLYELER</span><h3>Karar, güven ve görev takibi</h3></div></div>${activityEntries.length ? `<div class="teacher-activity-list">${activityEntries.map(([id, record]) => {
         const lab = ACTIVITY_LABS[id];
@@ -1759,7 +1866,8 @@ function buildRemoteStudentReport(student) {
   const payload = progress.payload || {};
   const completedIds = Object.keys(payload.completed || {}).map(Number);
   const activityCount = Object.values(payload.activities || {}).filter(record => Object.keys(record.choices || {}).length > 0).length;
-  const readingCount = Object.values(payload.activities || {}).filter(record => record.readingCompleted).length;
+  const weeklyTracking = getWeeklyTracking(payload);
+  const readingCount = weeklyTracking.readingCount;
   const answers = Object.entries(payload.answers || {}).sort((a, b) => new Date(b[1]?.savedAt || 0) - new Date(a[1]?.savedAt || 0));
   const lastAnswer = answers[0];
   let lastAnswerText = "Henüz uygulama cevabı yok.";
@@ -1767,7 +1875,7 @@ function buildRemoteStudentReport(student) {
     const module = MODULES.find(item => item.id === Number(lastAnswer[0]));
     lastAnswerText = `${module?.title || "Modül"}\n${module?.fields.filter(field => lastAnswer[1].values?.[field[0]]).map(field => `${field[1]} ${lastAnswer[1].values[field[0]]}`).join("\n") || ""}`;
   }
-  return `VERİMLİ DERS ÇALIŞMA AKADEMİSİ\nÖĞRETMEN GELİŞİM RAPORU\n\nÖğrenci: ${student.name}\nTarih: ${new Intl.DateTimeFormat("tr-TR").format(new Date())}\nTamamlanan modül: ${completedIds.length} / 10\nEtkileşimli atölye: ${activityCount} / 10\n5 paragraflık okuma görevi: ${readingCount} / 10\nHaftalık plan: %${Number(progress.plan_percent || 0)}\nSon etkinlik: ${progress.last_activity ? formatDate(progress.last_activity) : "Henüz yok"}\n\nTamamlanan modüller:\n${completedIds.length ? completedIds.map(id => `${id}. ${MODULES.find(module => module.id === id)?.title || ""}`).join("\n") : "Henüz yok"}\n\nSon uygulama:\n${lastAnswerText}`;
+  return `VERİMLİ DERS ÇALIŞMA AKADEMİSİ\nÖĞRETMEN GELİŞİM RAPORU\n\nÖğrenci: ${student.name}\nTarih: ${new Intl.DateTimeFormat("tr-TR").format(new Date())}\nTamamlanan modül: ${completedIds.length} / 10\nEtkileşimli atölye: ${activityCount} / 10\nBu haftaki giriş: ${weeklyTracking.loginCount} / 7\nBu haftaki 5 paragraf okuması: ${readingCount} / 7\nHaftalık plan: %${Number(progress.plan_percent || 0)}\nSon etkinlik: ${progress.last_activity ? formatDate(progress.last_activity) : "Henüz yok"}\n\nTamamlanan modüller:\n${completedIds.length ? completedIds.map(id => `${id}. ${MODULES.find(module => module.id === id)?.title || ""}`).join("\n") : "Henüz yok"}\n\nSon uygulama:\n${lastAnswerText}`;
 }
 
 async function createTeacherClass(form) {
@@ -1902,6 +2010,8 @@ function resetAllData() {
   state.plan = createEmptyPlan();
   state.quizzes = {};
   state.activities = {};
+  state.attendance = {};
+  state.readingLog = {};
   persistStudentStateLocally();
   scheduleStudentSync();
   showToast("Tüm veriler temizlendi. Yeni bir başlangıç yapabilirsin. 🌱");
@@ -1935,7 +2045,7 @@ function updateModuleProgressFromState(moduleId) {
   const checked = (state.checks[moduleId] || []).filter(Boolean).length;
   const quizPoint = Number.isInteger(state.quizzes[moduleId]?.selected) ? 1 : 0;
   const labPoint = state.completed[moduleId] || Object.keys(state.activities[moduleId]?.choices || {}).length === ACTIVITY_LABS[moduleId].items.length ? 1 : 0;
-  const readingPoint = state.completed[moduleId] || state.activities[moduleId]?.readingCompleted ? 1 : 0;
+  const readingPoint = state.completed[moduleId] || hasReadingForModule(moduleId) ? 1 : 0;
   const progress = Math.round(((filled + checked + quizPoint + labPoint + readingPoint) / (module.fields.length + module.checks.length + 3)) * 100);
   const progressFill = document.querySelector(".module-progress .progress-fill");
   const progressValue = document.querySelector(".module-progress .progress-line strong");
@@ -1981,22 +2091,43 @@ function saveActivityReflection(moduleId) {
 }
 
 function handleReadingWorkshopVisit(moduleId) {
-  const record = ensureActivityRecord(moduleId);
-  record.readingVisitedAt = new Date().toISOString();
-  record.updatedAt = record.readingVisitedAt;
-  saveData(STORAGE_KEYS.activities, state.activities);
+  const tracking = getReadingWeek();
+  const existing = state.readingLog[tracking.todayKey] || {};
+  state.readingLog[tracking.todayKey] = {
+    ...existing,
+    moduleId: existing.completedAt ? existing.moduleId : moduleId,
+    weekKey: tracking.weekKey,
+    visitedAt: new Date().toISOString()
+  };
+  saveData(STORAGE_KEYS.readingLog, state.readingLog);
+  const currentMission = document.querySelector(`#reading-mission-${moduleId}`);
+  if (currentMission) currentMission.outerHTML = renderReadingMission(moduleId);
 }
 
-function handleReadingCompletion(moduleId, completed) {
+function handleDailyReadingCompletion(moduleId) {
+  const tracking = getReadingWeek();
+  const existing = state.readingLog[tracking.todayKey] || {};
+  if (!existing.visitedAt) {
+    showToast("Önce Okuma Atölyesi’ni açıp bugünün 5 paragrafını okuyabilirsin.", "error");
+    return;
+  }
+  if (isReadingEntryCompleted(existing)) {
+    showToast("Bugünün okuma kaydı zaten tamamlandı. Yarın yeni gün açılacak. ✓");
+    return;
+  }
+  const completedAt = new Date().toISOString();
+  state.readingLog[tracking.todayKey] = { ...existing, moduleId, weekKey: tracking.weekKey, paragraphs: 5, completedAt };
+  saveData(STORAGE_KEYS.readingLog, state.readingLog);
   const record = ensureActivityRecord(moduleId);
-  record.readingCompleted = completed;
-  record.readingCompletedAt = completed ? new Date().toISOString() : null;
-  record.updatedAt = new Date().toISOString();
+  record.readingCompleted = true;
+  record.readingCompletedAt = record.readingCompletedAt || completedAt;
+  record.updatedAt = completedAt;
   saveData(STORAGE_KEYS.activities, state.activities);
   const currentMission = document.querySelector(`#reading-mission-${moduleId}`);
   if (currentMission) currentMission.outerHTML = renderReadingMission(moduleId);
   updateModuleProgressFromState(moduleId);
-  showToast(completed ? "5 paragraflık okuma görevini tamamladın. Harika! 📚" : "Okuma işaretini kaldırdın. Hazır olduğunda yeniden tamamlayabilirsin.", completed ? "success" : "error");
+  const weeklyCount = getWeeklyTracking().readingCount;
+  showToast(`Bugünün 5 paragrafını tamamladın. Bu hafta ${weeklyCount}/7 gün! 📚`);
 }
 
 document.addEventListener("click", event => {
@@ -2024,6 +2155,7 @@ document.addEventListener("click", event => {
   const action = actionButton.dataset.action;
 
   if (studentPreviewMode && PREVIEW_BLOCKED_ACTIONS.has(action)) {
+    event.preventDefault();
     showToast("Bu ekran öğretmen önizlemesidir. Öğrenci verilerinde değişiklik yapılamaz.", "error");
     return;
   }
@@ -2036,6 +2168,7 @@ document.addEventListener("click", event => {
   else if (action === "activity-day") handleActivityDay(Number(actionButton.dataset.moduleId), Number(actionButton.dataset.dayIndex));
   else if (action === "save-activity-reflection") saveActivityReflection(Number(actionButton.dataset.moduleId));
   else if (action === "visit-reading-workshop") handleReadingWorkshopVisit(Number(actionButton.dataset.moduleId));
+  else if (action === "complete-daily-reading") handleDailyReadingCompletion(Number(actionButton.dataset.moduleId));
   else if (action === "save-draft") {
     const form = document.querySelector("#module-form");
     if (saveModuleDraft(form)) {
@@ -2144,10 +2277,6 @@ document.addEventListener("input", event => {
 document.addEventListener("change", event => {
   if (event.target.matches('[data-backup-import="student"]')) {
     restoreCurrentStudentBackup(event.target.files?.[0]).finally(() => { event.target.value = ""; });
-    return;
-  }
-  if (event.target.matches("[data-reading-complete]")) {
-    handleReadingCompletion(Number(event.target.dataset.moduleId), event.target.checked);
     return;
   }
   if (event.target.matches('#plan-form [data-plan-field="done"]')) {
