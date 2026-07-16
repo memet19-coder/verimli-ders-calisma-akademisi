@@ -1152,6 +1152,9 @@ function renderHome() {
   const name = state.settings.studentName.trim();
   const unlockedBadges = BADGES.filter(item => item[3](completedIds)).length;
   const academyScore = Math.round((overall * 0.7) + (planStats.percent * 0.3));
+  const readingTracking = getWeeklyTracking();
+  const todayReading = state.readingLog[readingTracking.todayKey] || {};
+  const readToday = isReadingEntryCompleted(todayReading);
   const recentActivity = Object.entries(state.completed)
     .filter(([, value]) => value?.completedAt)
     .sort((a, b) => new Date(b[1].completedAt) - new Date(a[1].completedAt))
@@ -1178,6 +1181,12 @@ function renderHome() {
           <div class="score-details"><span><b>${completedIds.length}</b> modül</span><span><b>${unlockedBadges}</b> rozet</span><span><b>%${planStats.percent}</b> plan</span></div>
         </div>
       </div>
+    </section>
+
+    <section class="home-reading-card ${readToday ? "done" : ""}">
+      <div class="home-reading-icon">${readToday ? "✓" : "5"}<small>PARAGRAF</small></div>
+      <div class="home-reading-copy"><span class="section-tag">BUGÜNÜN OKUMA GÖREVİ</span><h3>${readToday ? "Bugünkü okuman tamamlandı!" : "Bugün 5 paragraf okumaya hazır mısın?"}</h3><p>Perşembeden Çarşambaya her gün küçük bir okuma adımı. Bu haftaki durumun: <strong>${readingTracking.readingCount}/7 gün</strong>.</p><div class="home-reading-days">${readingTracking.days.map(day => `<span class="${day.reading ? "done" : day.key === readingTracking.todayKey ? "today" : ""}" title="${escapeHTML(formatReadingDay(day.date).weekday)}">${day.reading ? "✓" : formatReadingDay(day.date).weekday.slice(0, 1)}</span>`).join("")}</div></div>
+      <div class="home-reading-actions"><a class="button reading-launch" href="https://memet19-coder.github.io/okuma-takip-anlama-atolyesi/" target="_blank" rel="noopener noreferrer" data-action="visit-reading-workshop" data-module-id="${nextModule.id}">${readToday ? "Yeniden Oku" : "Bugünkü Okumayı Aç"} <span>↗</span></a><button class="button ${readToday ? "secondary" : "primary"}" type="button" data-action="complete-daily-reading" data-module-id="${nextModule.id}" ${readToday ? "disabled" : ""}>${readToday ? "Bugün Tamamlandı ✓" : "5 Paragrafı Okudum"}</button></div>
     </section>
 
     <div class="stats-grid">
@@ -2128,6 +2137,7 @@ function handleDailyReadingCompletion(moduleId) {
   updateModuleProgressFromState(moduleId);
   const weeklyCount = getWeeklyTracking().readingCount;
   showToast(`Bugünün 5 paragrafını tamamladın. Bu hafta ${weeklyCount}/7 gün! 📚`);
+  if (state.page === "home") renderHome();
 }
 
 document.addEventListener("click", event => {
