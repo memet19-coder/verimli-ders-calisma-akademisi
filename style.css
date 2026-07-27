@@ -918,6 +918,34 @@ body {
 .teacher-stat small { color: var(--muted); font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
 .teacher-stat strong { font-size: 23px; line-height: 1.2; }
 .teacher-stat p { color: var(--muted); font-size: 9px; }
+.teacher-alert-center { margin: 0 0 18px; padding: 18px; border: 1px solid #f0d7aa; border-radius: 20px; background: linear-gradient(135deg, #fffaf0, #fff5e5); box-shadow: var(--shadow-small); }
+.teacher-alert-center.all-clear { border-color: #bce5d8; background: linear-gradient(135deg, #f2fbf8, #e9f8f2); }
+.teacher-alert-heading { display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; align-items: center; gap: 13px; }
+.teacher-alert-heading > span { display: grid; width: 42px; height: 42px; place-items: center; border-radius: 13px; color: #fff; background: #df8b2d; font-size: 22px; font-weight: 950; }
+.teacher-alert-center.all-clear .teacher-alert-heading > span { background: #2fa77f; }
+.teacher-alert-heading small, .teacher-alert-heading h2, .teacher-alert-heading p { display: block; margin: 0; }
+.teacher-alert-heading small { color: #a66b24; font-size: 8px; font-weight: 900; letter-spacing: .12em; }
+.teacher-alert-center.all-clear .teacher-alert-heading small { color: #237c62; }
+.teacher-alert-heading h2 { margin-top: 2px; font-size: 18px; }
+.teacher-alert-heading p { margin-top: 3px; color: var(--muted); font-size: 10px; }
+.teacher-alert-totals { display: flex; gap: 7px; }
+.teacher-alert-totals strong { min-width: 78px; padding: 8px 10px; border: 1px solid rgba(196,123,36,.18); border-radius: 12px; color: #965f1e; background: rgba(255,255,255,.7); text-align: center; font-size: 17px; }
+.teacher-alert-totals small { display: block; margin-top: 1px; color: #9a7650; font-size: 7px; font-weight: 800; }
+.teacher-alert-list { display: grid; gap: 7px; max-height: 255px; margin-top: 14px; overflow-y: auto; }
+.teacher-alert-student { display: grid; grid-template-columns: 34px minmax(125px, .6fr) minmax(300px, 1.4fr) auto; align-items: center; gap: 10px; width: 100%; padding: 9px 11px; border: 1px solid rgba(216,163,93,.26); border-radius: 13px; color: var(--ink); text-align: left; background: rgba(255,255,255,.74); cursor: pointer; }
+.teacher-alert-student:hover { border-color: #e3b56f; background: #fff; transform: translateY(-1px); }
+.teacher-alert-avatar { display: grid; width: 33px; height: 33px; place-items: center; border-radius: 10px; color: #9a5d18; background: #ffedcf; font-weight: 900; }
+.teacher-alert-student strong, .teacher-alert-student small { display: block; }
+.teacher-alert-student strong { font-size: 11px; }
+.teacher-alert-student small { margin-top: 1px; color: var(--muted); font-size: 8px; }
+.teacher-alert-student > b { color: #9a5d18; font-size: 9px; white-space: nowrap; }
+.teacher-alert-badges { display: flex; flex-wrap: wrap; gap: 5px; }
+.teacher-alert-badges em, .student-warning-stack span { padding: 5px 7px; border-radius: 999px; font-size: 8px; font-style: normal; font-weight: 900; white-space: nowrap; }
+.teacher-alert-badges .module-warning, .student-warning-stack .module-warning { color: #a25027; background: #ffeadf; }
+.teacher-alert-badges .reading-missed, .student-warning-stack .reading-missed { color: #a14961; background: #ffedf2; }
+.teacher-alert-badges .reading-pending, .student-warning-stack .reading-pending { color: #8a641f; background: #fff0cf; }
+.teacher-alert-badges .reading-done, .student-warning-stack .all-done { color: #176b56; background: #e5f7f0; }
+.teacher-alert-note { margin: 10px 2px 0; color: #9a7650; font-size: 8px; }
 .teacher-dashboard-grid { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 18px; align-items: start; }
 .teacher-class-panel, .teacher-main-panel { border: 1px solid var(--line); border-radius: 22px; background: #fff; box-shadow: var(--shadow-small); }
 .teacher-class-panel { padding: 18px; }
@@ -954,14 +982,17 @@ body {
 .code-input input { border-radius: 12px 0 0 12px !important; }
 .code-input button { padding: 0 11px; border: 1px solid #dce0eb; border-left: 0; border-radius: 0 12px 12px 0; color: var(--primary-dark); background: #fff; font-size: 10px; font-weight: 850; cursor: pointer; }
 .student-table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 15px; }
-.student-table { width: 100%; min-width: 960px; border-collapse: collapse; }
+.student-table { width: 100%; min-width: 1110px; border-collapse: collapse; }
 .student-table th { padding: 11px; color: var(--muted); text-align: left; background: #f8f9fc; font-size: 9px; letter-spacing: .04em; text-transform: uppercase; }
 .student-table td { padding: 12px 10px; border-top: 1px solid var(--line); font-size: 11px; }
 .student-table tr:hover { background: #fbfcff; }
+.student-table tr.has-warning { background: #fffdf8; }
+.student-table tr.has-warning:hover { background: #fff9ee; }
 .daily-status-stack { display: grid; gap: 4px; min-width: 76px; }
 .daily-status-stack span { display: block; padding: 4px 7px; border-radius: 999px; font-size: 8px; font-weight: 900; text-align: center; white-space: nowrap; }
 .daily-status-stack .yes { color: #176b56; background: #eaf8f3; }
 .daily-status-stack .no { color: #9a5266; background: #fff1f4; }
+.student-warning-stack { display: grid; justify-items: start; gap: 4px; min-width: 105px; }
 .student-name-cell { display: flex; align-items: center; gap: 9px; min-width: 145px; }
 .student-name-cell > span { display: grid; width: 35px; height: 35px; flex: 0 0 35px; place-items: center; border-radius: 11px; color: var(--primary-dark); background: var(--primary-soft); font-weight: 900; }
 .student-name-cell strong, .student-name-cell small { display: block; }
@@ -1256,6 +1287,14 @@ body {
   .teacher-stat { gap: 8px; padding: 12px; }
   .teacher-stat > span { width: 36px; height: 36px; flex-basis: 36px; font-size: 18px; }
   .teacher-stat strong { font-size: 18px; }
+  .teacher-alert-center { padding: 14px; }
+  .teacher-alert-heading { grid-template-columns: 38px 1fr; }
+  .teacher-alert-heading > span { width: 38px; height: 38px; }
+  .teacher-alert-totals { grid-column: 1 / -1; width: 100%; }
+  .teacher-alert-totals strong { flex: 1; }
+  .teacher-alert-student { grid-template-columns: 34px 1fr auto; }
+  .teacher-alert-badges { grid-column: 2 / -1; }
+  .teacher-alert-list { max-height: none; }
   .teacher-class-panel { display: block; }
   .teacher-mini-form { margin-top: 15px; padding: 15px 0 0; border-top: 1px solid var(--line); border-left: 0; }
   .teacher-main-panel { padding: 16px; }
