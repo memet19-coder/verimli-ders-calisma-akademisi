@@ -694,6 +694,34 @@ function getWeeklyTracking(payload = state) {
   };
 }
 
+function getStudentCourseWeekStatus(student, referenceDate = new Date()) {
+  const progress = getStudentProgress(student);
+  const payload = progress.payload || {};
+  const createdAt = new Date(student.created_at);
+  const joinedAt = Number.isNaN(createdAt.getTime()) ? referenceDate : createdAt;
+  const joinedWeekStart = getReadingWeek(joinedAt).start;
+  const currentWeekStart = getReadingWeek(referenceDate).start;
+  const elapsedWeeks = Math.max(0, Math.floor((currentWeekStart.getTime() - joinedWeekStart.getTime()) / (7 * 86400000)));
+  const expectedModuleCount = Math.min(MODULES.length, elapsedWeeks);
+  const completedIds = new Set(Object.keys(payload.completed || {}).map(Number));
+  const overdueModules = MODULES.slice(0, expectedModuleCount).filter(module => !completedIds.has(module.id));
+  return { elapsedWeeks, expectedModuleCount, overdueModules };
+}
+
+function getTeacherStudentAlerts(student, referenceDate = new Date()) {
+  const progress = getStudentProgress(student);
+  const tracking = getWeeklyTracking(progress.payload || {});
+  const courseWeek = getStudentCourseWeekStatus(student, referenceDate);
+  const today = tracking.days.find(day => day.key === tracking.todayKey);
+  const missedReadingDays = tracking.days.filter(day => day.key < tracking.todayKey && !day.reading);
+  return {
+    overdueModules: courseWeek.overdueModules,
+    missedReadingDays,
+    readingPendingToday: Boolean(today && !today.reading),
+    hasAlert: courseWeek.overdueModules.length > 0 || missedReadingDays.length > 0 || Boolean(today && !today.reading)
+  };
+}
+
 function recordDailyAttendance() {
   if (studentPreviewMode || cloudSession?.role !== "student") return false;
   const todayKey = localDateKey();
@@ -1751,9 +1779,12 @@ function renderTeacherDashboard() {
   const activeClass = teacherStore.classes.find(item => item.id === teacherStore.activeClassId) || null;
   const visibleStudents = activeClass ? teacherStore.students.filter(item => item.class_id === activeClass.id) : [];
   const allProgress = teacherStore.students.map(getStudentProgress);
+  const visibleAlerts = visibleStudents.map(student => ({ student, alerts: getTeacherStudentAlerts(student) }));
   const todayKey = localDateKey();
   const loggedInToday = allProgress.filter(item => Boolean(item.payload?.attendance?.[todayKey])).length;
   const readToday = allProgress.filter(item => isReadingEntryCompleted(item.payload?.readingLog?.[todayKey])).length;
+  const overdueModuleStudents = visibleAlerts.filter(item => item.alerts.overdueModules.length > 0).length;
+  const pendingReadingStudents = visibleAlerts.filter(item => item.alerts.readingPendingToday).length;
   const averageModules = allProgress.length ? (allProgress.reduce((sum, item) => sum + Number(item.completed_count || 0), 0) / allProgress.length).toFixed(1) : "0";
   const averagePlan = allProgress.length ? Math.round(allProgress.reduce((sum, item) => sum + Number(item.plan_percent || 0), 0) / allProgress.length) : 0;
 
@@ -1768,6 +1799,8 @@ function renderTeacherDashboard() {
       ${teacherStat("📚", "Ortalama modül", `${averageModules} / 10`, "Sınıf ortalaması")}
       ${teacherStat("🗓️", "Plan ortalaması", `%${averagePlan}`, "Haftalık tamamlama")}
     </div>
+
+    ${activeClass ? renderTeacherAlertCenter(visibleAlerts, overdueModuleStudents, pendingReadingStudents) : ""}
 
     <div class="teacher-dashboard-grid">
       <aside class="teacher-class-panel">
@@ -1799,14 +1832,38 @@ function teacherStat(icon, label, value, note) {
   return `<article class="teacher-stat"><span>${icon}</span><div><small>${label}</small><strong>${value}</strong><p>${note}</p></div></article>`;
 }
 
+function renderTeacherAlertCenter(studentAlerts, overdueModuleStudents, pendingReadingStudents) {
+  const requiringAttention = studentAlerts.filter(item => item.alerts.hasAlert);
+  if (!requiringAttention.length) {
+    return `<section class="teacher-alert-center all-clear"><div class="teacher-alert-heading"><span>✓</span><div><small>GÜNLÜK TAKİP</small><h2>Bugün takip gerektiren bir durum yok</h2><p>Bu sınıftaki öğrencilerin süresi dolan modülü veya bekleyen günlük okuması bulunmuyor.</p></div></div></section>`;
+  }
+  return `<section class="teacher-alert-center">
+    <div class="teacher-alert-heading"><span>!</span><div><small>TAKİP UYARILARI</small><h2>Hatırlatma bekleyen öğrenciler</h2><p>Haftası biten modüller ile günlük 5 paragraf görevleri burada görünür. Bugünkü görev, öğrenci tamamlayana kadar “bekleniyor” olarak kalır.</p></div><div class="teacher-alert-totals"><strong>${overdueModuleStudents}<small>modül uyarısı</small></strong><strong>${pendingReadingStudents}<small>bugünkü okuma</small></strong></div></div>
+    <div class="teacher-alert-list">${requiringAttention.map(({ student, alerts }) => {
+      const firstOverdue = alerts.overdueModules[0];
+      return `<button class="teacher-alert-student" type="button" data-action="view-student" data-student-id="${student.id}">
+        <span class="teacher-alert-avatar">${escapeHTML(student.name.charAt(0).toLocaleUpperCase("tr-TR"))}</span>
+        <div><strong>${escapeHTML(student.name)}</strong><small>Ayrıntıları görmek için açın</small></div>
+        <div class="teacher-alert-badges">
+          ${firstOverdue ? `<em class="module-warning">⚠ ${firstOverdue.id}. modül${alerts.overdueModules.length > 1 ? ` +${alerts.overdueModules.length - 1}` : ""} gecikti</em>` : ""}
+          ${alerts.missedReadingDays.length ? `<em class="reading-missed">📖 ${alerts.missedReadingDays.length} okuma günü eksik</em>` : ""}
+          ${alerts.readingPendingToday ? `<em class="reading-pending">○ Bugünkü 5 paragraf bekleniyor</em>` : `<em class="reading-done">✓ Bugünkü okuma tamam</em>`}
+        </div><b>İncele →</b>
+      </button>`;
+    }).join("")}</div>
+    <p class="teacher-alert-note">Modül uyarıları, öğrencinin Akademiye katıldığı Perşembe–Çarşamba haftalarına göre hesaplanır.</p>
+  </section>`;
+}
+
 function renderTeacherStudentTable(students) {
   if (!students.length) return `<div class="teacher-empty-class compact"><span>👋</span><h2>Bu sınıf henüz boş</h2><p>“Öğrenci Ekle” düğmesiyle ilk öğrenci giriş kodunu oluşturabilirsiniz.</p></div>`;
   const todayKey = localDateKey();
-  return `<div class="student-table-wrap"><table class="student-table"><thead><tr><th>Öğrenci</th><th>Giriş kodu</th><th>Modül ilerlemesi</th><th>Plan</th><th>Bugün</th><th>Son çalışma</th><th></th></tr></thead><tbody>${students.map(student => {
+  return `<div class="student-table-wrap"><table class="student-table"><thead><tr><th>Öğrenci</th><th>Giriş kodu</th><th>Modül ilerlemesi</th><th>Plan</th><th>Bugün</th><th>Uyarı</th><th>Son çalışma</th><th></th></tr></thead><tbody>${students.map(student => {
     const progress = getStudentProgress(student);
     const loggedIn = Boolean(progress.payload?.attendance?.[todayKey]);
     const read = isReadingEntryCompleted(progress.payload?.readingLog?.[todayKey]);
-    return `<tr data-student-row data-search-name="${escapeHTML(student.name.toLocaleLowerCase("tr-TR"))}"><td><div class="student-name-cell"><span>${escapeHTML(student.name.charAt(0).toLocaleUpperCase("tr-TR"))}</span><div><strong>${escapeHTML(student.name)}</strong><small>${progress.last_activity ? "Aktif öğrenci" : "Henüz başlamadı"}</small></div></div></td><td><button class="code-chip" type="button" data-action="copy-student-code" data-code="${escapeHTML(student.code_hint)}">${escapeHTML(student.code_hint)} 📋</button></td><td><div class="table-progress"><div><i style="width:${Number(progress.completed_count || 0) * 10}%"></i></div><strong>${Number(progress.completed_count || 0)} / 10</strong></div></td><td><span class="percent-chip ${Number(progress.plan_percent || 0) >= 70 ? "good" : ""}">%${Number(progress.plan_percent || 0)}</span></td><td><div class="daily-status-stack"><span class="${loggedIn ? "yes" : "no"}">${loggedIn ? "✓ Giriş" : "— Giriş"}</span><span class="${read ? "yes" : "no"}">${read ? "✓ Okuma" : "— Okuma"}</span></div></td><td><span class="last-seen">${progress.last_activity ? formatRelativeDate(progress.last_activity) : "—"}</span></td><td><div class="row-actions"><button class="preview-student-button" type="button" data-action="preview-student" data-student-id="${student.id}" title="Öğrenci panelini yeni sekmede aç"><span>👁️</span> Görünüm</button><button class="button ghost small" type="button" data-action="view-student" data-student-id="${student.id}">İncele →</button><button class="manage-student-button" type="button" data-action="manage-student" data-student-id="${student.id}" aria-label="${escapeHTML(student.name)} için düzenleme seçeneklerini aç" title="Öğrenciyi yönet">•••</button></div></td></tr>`;
+    const alerts = getTeacherStudentAlerts(student);
+    return `<tr class="${alerts.hasAlert ? "has-warning" : ""}" data-student-row data-search-name="${escapeHTML(student.name.toLocaleLowerCase("tr-TR"))}"><td><div class="student-name-cell"><span>${escapeHTML(student.name.charAt(0).toLocaleUpperCase("tr-TR"))}</span><div><strong>${escapeHTML(student.name)}</strong><small>${progress.last_activity ? "Aktif öğrenci" : "Henüz başlamadı"}</small></div></div></td><td><button class="code-chip" type="button" data-action="copy-student-code" data-code="${escapeHTML(student.code_hint)}">${escapeHTML(student.code_hint)} 📋</button></td><td><div class="table-progress"><div><i style="width:${Number(progress.completed_count || 0) * 10}%"></i></div><strong>${Number(progress.completed_count || 0)} / 10</strong></div></td><td><span class="percent-chip ${Number(progress.plan_percent || 0) >= 70 ? "good" : ""}">%${Number(progress.plan_percent || 0)}</span></td><td><div class="daily-status-stack"><span class="${loggedIn ? "yes" : "no"}">${loggedIn ? "✓ Giriş" : "— Giriş"}</span><span class="${read ? "yes" : "no"}">${read ? "✓ Okuma" : "— Okuma"}</span></div></td><td><div class="student-warning-stack">${alerts.overdueModules.length ? `<span class="module-warning">⚠ ${alerts.overdueModules.length} modül</span>` : ""}${alerts.missedReadingDays.length ? `<span class="reading-missed">📖 ${alerts.missedReadingDays.length} gün eksik</span>` : ""}${alerts.readingPendingToday ? `<span class="reading-pending">○ Okuma bekleniyor</span>` : `<span class="all-done">✓ Güncel</span>`}</div></td><td><span class="last-seen">${progress.last_activity ? formatRelativeDate(progress.last_activity) : "—"}</span></td><td><div class="row-actions"><button class="preview-student-button" type="button" data-action="preview-student" data-student-id="${student.id}" title="Öğrenci panelini yeni sekmede aç"><span>👁️</span> Görünüm</button><button class="button ghost small" type="button" data-action="view-student" data-student-id="${student.id}">İncele →</button><button class="manage-student-button" type="button" data-action="manage-student" data-student-id="${student.id}" aria-label="${escapeHTML(student.name)} için düzenleme seçeneklerini aç" title="Öğrenciyi yönet">•••</button></div></td></tr>`;
   }).join("")}</tbody></table></div>`;
 }
 
