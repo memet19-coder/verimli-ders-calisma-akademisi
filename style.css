@@ -946,6 +946,44 @@ body {
 .teacher-alert-badges .reading-pending, .student-warning-stack .reading-pending { color: #8a641f; background: #fff0cf; }
 .teacher-alert-badges .reading-done, .student-warning-stack .all-done { color: #176b56; background: #e5f7f0; }
 .teacher-alert-note { margin: 10px 2px 0; color: #9a7650; font-size: 8px; }
+.teacher-history-panel { margin-bottom: 18px; padding: 22px; border: 1px solid var(--line); border-radius: 22px; background: #fff; box-shadow: var(--shadow-small); scroll-margin-top: 90px; }
+.teacher-history-header { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.teacher-history-header h2, .teacher-history-header p { margin: 0; }
+.teacher-history-header h2 { margin-top: 2px; font-size: 22px; }
+.teacher-history-header p { margin-top: 4px; color: var(--muted); font-size: 10px; }
+.history-week-tabs { display: flex; gap: 7px; margin: 17px 0 13px; padding-bottom: 4px; overflow-x: auto; }
+.history-week-tabs button { min-width: 112px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 12px; color: var(--muted); text-align: left; background: #fafbfe; cursor: pointer; }
+.history-week-tabs button:hover { border-color: #bcc5f4; background: var(--primary-soft); }
+.history-week-tabs button.active { color: #fff; border-color: var(--primary); background: linear-gradient(135deg, var(--primary-dark), var(--primary)); box-shadow: 0 7px 16px color-mix(in srgb, var(--primary) 20%, transparent); }
+.history-week-tabs strong, .history-week-tabs small { display: block; }
+.history-week-tabs strong { font-size: 10px; }
+.history-week-tabs small { margin-top: 2px; font-size: 7px; white-space: nowrap; }
+.history-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+.history-summary > div { padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: #f8f9fc; }
+.history-summary span, .history-summary strong, .history-summary small { display: block; }
+.history-summary span { color: var(--muted); font-size: 8px; font-weight: 800; text-transform: uppercase; }
+.history-summary strong { margin-top: 3px; font-size: 18px; }
+.history-summary small { margin-top: 2px; color: var(--muted); font-size: 8px; }
+.history-student-list { display: grid; gap: 7px; max-height: 470px; overflow-y: auto; }
+.history-student-card { display: grid; grid-template-columns: minmax(145px, .75fr) minmax(155px, 1fr) minmax(155px, 1fr) minmax(190px, 1.2fr) auto; align-items: center; gap: 11px; padding: 11px; border: 1px solid var(--line); border-radius: 14px; background: #fcfcfe; }
+.history-student-card:hover { border-color: #cfd5ee; background: #fff; }
+.history-student-name { display: flex; align-items: center; gap: 9px; }
+.history-student-name > span { display: grid; width: 35px; height: 35px; flex: 0 0 35px; place-items: center; border-radius: 11px; color: var(--primary-dark); background: var(--primary-soft); font-weight: 900; }
+.history-student-name strong, .history-student-name small { display: block; }
+.history-student-name strong { font-size: 11px; }
+.history-student-name small { margin-top: 2px; color: var(--muted); font-size: 8px; }
+.history-report-cell { min-width: 0; padding-left: 10px; border-left: 1px solid var(--line); }
+.history-report-cell > small, .history-report-cell > strong, .history-report-cell > p { display: block; }
+.history-report-cell > small { color: var(--muted); font-size: 7px; font-weight: 900; letter-spacing: .07em; }
+.history-report-cell > strong { margin-top: 3px; font-size: 10px; }
+.history-report-cell > p { margin: 3px 0 0; overflow: hidden; color: var(--muted); font-size: 8px; line-height: 1.4; text-overflow: ellipsis; }
+.history-status.done { color: #176b56; }
+.history-status.late, .history-status.pending { color: #8a641f; }
+.history-status.missed { color: #a14961; }
+.history-status.neutral { color: var(--muted); }
+.history-inspect { min-height: 34px; padding: 0 9px; border: 1px solid #dce0eb; border-radius: 10px; color: var(--primary-dark); background: #fff; font-size: 9px; font-weight: 900; cursor: pointer; white-space: nowrap; }
+.history-inspect:hover { border-color: #bac3ef; background: var(--primary-soft); }
+.history-archive-note { margin: 10px 2px 0; color: var(--muted); font-size: 8px; }
 .teacher-dashboard-grid { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 18px; align-items: start; }
 .teacher-class-panel, .teacher-main-panel { border: 1px solid var(--line); border-radius: 22px; background: #fff; box-shadow: var(--shadow-small); }
 .teacher-class-panel { padding: 18px; }
@@ -1295,6 +1333,15 @@ body {
   .teacher-alert-student { grid-template-columns: 34px 1fr auto; }
   .teacher-alert-badges { grid-column: 2 / -1; }
   .teacher-alert-list { max-height: none; }
+  .teacher-history-panel { padding: 15px; }
+  .teacher-history-header { align-items: flex-start; flex-direction: column; }
+  .teacher-history-header .button { width: 100%; }
+  .history-summary { grid-template-columns: 1fr 1fr; }
+  .history-student-list { max-height: none; }
+  .history-student-card { grid-template-columns: 42px 1fr; gap: 9px; }
+  .history-student-name { grid-column: 1 / -1; }
+  .history-report-cell { grid-column: 1 / -1; padding: 9px 0 0; border-top: 1px solid var(--line); border-left: 0; }
+  .history-inspect { grid-column: 1 / -1; width: 100%; }
   .teacher-class-panel { display: block; }
   .teacher-mini-form { margin-top: 15px; padding: 15px 0 0; border-top: 1px solid var(--line); border-left: 0; }
   .teacher-main-panel { padding: 16px; }
