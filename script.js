@@ -24,7 +24,7 @@ let cloudSession = null;
 let cloudSyncTimer = null;
 let studentPreviewMode = false;
 let previewStudentRecord = null;
-let teacherStore = { classes: [], students: [], activeClassId: null, selectedStudentId: null };
+let teacherStore = { classes: [], students: [], activeClassId: null, selectedStudentId: null, reportWeekKey: null };
 
 const STORAGE_KEYS = {
   settings: "vdca_settings",
@@ -32,6 +32,8 @@ const STORAGE_KEYS = {
   checks: "vdca_module_checks",
   completed: "vdca_module_completed",
   plan: "vdca_weekly_plan",
+  planHistory: "vdca_weekly_plan_history",
+  planWeekKey: "vdca_weekly_plan_week",
   quizzes: "vdca_module_quizzes",
   activities: "vdca_module_activities",
   attendance: "vdca_daily_attendance",
@@ -509,6 +511,8 @@ const state = {
   checks: loadData(STORAGE_KEYS.checks, {}),
   completed: loadData(STORAGE_KEYS.completed, {}),
   plan: normalizePlan(loadData(STORAGE_KEYS.plan, createEmptyPlan())),
+  planHistory: loadData(STORAGE_KEYS.planHistory, {}),
+  planWeekKey: loadData(STORAGE_KEYS.planWeekKey, null),
   quizzes: loadData(STORAGE_KEYS.quizzes, {}),
   activities: loadData(STORAGE_KEYS.activities, {}),
   attendance: loadData(STORAGE_KEYS.attendance, {}),
@@ -676,8 +680,8 @@ function hasReadingForModule(moduleId, payload = state) {
   return Object.values(payload.readingLog || {}).some(entry => isReadingEntryCompleted(entry) && Number(entry.moduleId) === Number(moduleId));
 }
 
-function getWeeklyTracking(payload = state) {
-  const week = getReadingWeek();
+function getWeeklyTracking(payload = state, referenceDate = new Date()) {
+  const week = getReadingWeek(referenceDate);
   const attendance = payload.attendance || {};
   const readingLog = payload.readingLog || {};
   const days = week.days.map(day => ({
@@ -692,6 +696,39 @@ function getWeeklyTracking(payload = state) {
     loginCount: days.filter(day => day.login).length,
     readingCount: days.filter(day => day.reading).length
   };
+}
+
+function getPreviousWeekKey(referenceDate = new Date()) {
+  const previous = getReadingWeek(referenceDate).start;
+  previous.setDate(previous.getDate() - 7);
+  return localDateKey(previous);
+}
+
+function prepareCurrentPlanWeek() {
+  const currentWeekKey = getReadingWeek().weekKey;
+  if (state.planWeekKey === currentWeekKey) return false;
+  const activePlan = normalizePlan(state.plan).filter(isPlanItemActive);
+  if (state.planWeekKey && activePlan.length) {
+    state.planHistory[state.planWeekKey] = activePlan;
+  } else if (!state.planWeekKey && activePlan.length) {
+    const legacyWeekKey = getPreviousWeekKey();
+    if (!state.planHistory[legacyWeekKey]) state.planHistory[legacyWeekKey] = activePlan;
+  }
+  state.plan = state.planHistory[currentWeekKey]
+    ? normalizePlan(state.planHistory[currentWeekKey])
+    : createEmptyPlan();
+  state.planWeekKey = currentWeekKey;
+  return true;
+}
+
+function saveCurrentPlanSnapshot() {
+  const currentWeekKey = getReadingWeek().weekKey;
+  state.planWeekKey = currentWeekKey;
+  const activePlan = normalizePlan(state.plan).filter(isPlanItemActive);
+  if (activePlan.length) state.planHistory[currentWeekKey] = activePlan;
+  else delete state.planHistory[currentWeekKey];
+  persistStudentStateLocally();
+  scheduleStudentSync();
 }
 
 function getStudentCourseWeekStatus(student, referenceDate = new Date()) {
@@ -769,12 +806,14 @@ function setFormBusy(form, busy, label) {
 
 function buildStudentPayload() {
   return {
-    version: 2,
+    version: 3,
     settings: state.settings,
     answers: state.answers,
     checks: state.checks,
     completed: state.completed,
     plan: state.plan,
+    planHistory: state.planHistory,
+    planWeekKey: state.planWeekKey,
     quizzes: state.quizzes,
     activities: state.activities,
     attendance: state.attendance,
@@ -891,6 +930,8 @@ function persistStudentStateLocally() {
   localStorage.setItem(STORAGE_KEYS.checks, JSON.stringify(state.checks));
   localStorage.setItem(STORAGE_KEYS.completed, JSON.stringify(state.completed));
   localStorage.setItem(STORAGE_KEYS.plan, JSON.stringify(state.plan));
+  localStorage.setItem(STORAGE_KEYS.planHistory, JSON.stringify(state.planHistory));
+  localStorage.setItem(STORAGE_KEYS.planWeekKey, JSON.stringify(state.planWeekKey));
   localStorage.setItem(STORAGE_KEYS.quizzes, JSON.stringify(state.quizzes));
   localStorage.setItem(STORAGE_KEYS.activities, JSON.stringify(state.activities));
   localStorage.setItem(STORAGE_KEYS.attendance, JSON.stringify(state.attendance));
@@ -905,6 +946,8 @@ function applyRemotePayload(payload, studentName, keepLocalWhenRemoteEmpty = fal
     state.checks = payload.checks || {};
     state.completed = payload.completed || {};
     state.plan = normalizePlan(payload.plan);
+    state.planHistory = payload.planHistory || {};
+    state.planWeekKey = payload.planWeekKey || null;
     state.quizzes = payload.quizzes || {};
     state.activities = payload.activities || {};
     state.attendance = payload.attendance || {};
@@ -915,12 +958,15 @@ function applyRemotePayload(payload, studentName, keepLocalWhenRemoteEmpty = fal
     state.checks = {};
     state.completed = {};
     state.plan = createEmptyPlan();
+    state.planHistory = {};
+    state.planWeekKey = null;
     state.quizzes = {};
     state.activities = {};
     state.attendance = {};
     state.readingLog = {};
   }
   state.settings.studentName = studentName || state.settings.studentName;
+  prepareCurrentPlanWeek();
   persistStudentStateLocally();
   return hasRemoteWork;
 }
@@ -932,6 +978,8 @@ function applyPreviewPayload(payload, studentName) {
   state.checks = previewPayload.checks || {};
   state.completed = previewPayload.completed || {};
   state.plan = normalizePlan(previewPayload.plan);
+  state.planHistory = previewPayload.planHistory || {};
+  state.planWeekKey = previewPayload.planWeekKey || null;
   state.quizzes = previewPayload.quizzes || {};
   state.activities = previewPayload.activities || {};
   state.attendance = previewPayload.attendance || {};
@@ -1136,6 +1184,7 @@ async function initializeApplication() {
   }
 
   if (cloudSession?.role === "student") {
+    if (prepareCurrentPlanWeek()) persistStudentStateLocally();
     if (!navigator.onLine) {
       recordDailyAttendance();
       showWorkspace("student");
@@ -1597,7 +1646,7 @@ function removePlanTask(planId) {
   if (!item) return;
   if (isPlanItemActive(item) && !window.confirm(`${item.day} günündeki bu görevi silmek istediğine emin misin?`)) return;
   state.plan = state.plan.filter(planItem => planItem.id !== planId);
-  saveData(STORAGE_KEYS.plan, state.plan);
+  saveCurrentPlanSnapshot();
   renderPlan();
   showToast("Görev plandan kaldırıldı.");
 }
@@ -1624,7 +1673,7 @@ function savePlan(form) {
     return;
   }
   state.plan = activeRows;
-  saveData(STORAGE_KEYS.plan, state.plan);
+  saveCurrentPlanSnapshot();
   showToast(`${activeRows.length} görevden oluşan haftalık planın kaydedildi. 🗓️`);
   renderPlan();
 }
@@ -1775,6 +1824,176 @@ async function loadTeacherData() {
   renderTeacherDashboard();
 }
 
+function addCalendarDays(date, amount) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + amount);
+  return next;
+}
+
+function getClassProgramWeeks(classRecord, students, referenceDate = new Date()) {
+  const studentDates = students
+    .map(student => new Date(student.created_at))
+    .filter(date => !Number.isNaN(date.getTime()));
+  const classDate = new Date(classRecord?.created_at);
+  const anchor = studentDates.length
+    ? new Date(Math.min(...studentDates.map(date => date.getTime())))
+    : Number.isNaN(classDate.getTime()) ? referenceDate : classDate;
+  const firstWeekStart = getReadingWeek(anchor).start;
+  const currentWeekStart = getReadingWeek(referenceDate).start;
+  const weekCount = Math.min(52, Math.max(1, Math.round((currentWeekStart - firstWeekStart) / (7 * 86400000)) + 1));
+  return Array.from({ length: weekCount }, (_, index) => {
+    const start = addCalendarDays(firstWeekStart, index * 7);
+    const end = addCalendarDays(start, 6);
+    return {
+      weekNumber: index + 1,
+      weekKey: localDateKey(start),
+      start,
+      end,
+      isCurrent: localDateKey(start) === localDateKey(currentWeekStart),
+      module: MODULES[index] || null
+    };
+  });
+}
+
+function formatWeekRange(week) {
+  const start = new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "short" }).format(week.start).replace(".", "");
+  const end = new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "short" }).format(week.end).replace(".", "");
+  return `${start} – ${end}`;
+}
+
+function getHistoricalPlan(student, week) {
+  const progress = getStudentProgress(student);
+  const payload = progress.payload || {};
+  const archived = payload.planHistory?.[week.weekKey];
+  if (Array.isArray(archived)) return { items: archived.filter(isPlanItemActive), source: "archive" };
+  if (payload.planWeekKey === week.weekKey && Array.isArray(payload.plan)) {
+    return { items: payload.plan.filter(isPlanItemActive), source: "current" };
+  }
+  const hasModernPlanData = Boolean(payload.planWeekKey || Object.keys(payload.planHistory || {}).length);
+  if (!hasModernPlanData && Array.isArray(payload.plan)) {
+    const currentWeek = getReadingWeek();
+    const updatedAt = new Date(progress.updated_at || progress.last_activity || 0);
+    const legacyWeekKey = updatedAt < currentWeek.start ? getPreviousWeekKey() : currentWeek.weekKey;
+    if (week.weekKey === legacyWeekKey) return { items: payload.plan.filter(isPlanItemActive), source: "legacy" };
+  }
+  return { items: [], source: "unavailable" };
+}
+
+function getHistoricalStudentWeek(student, week, referenceDate = new Date()) {
+  const progress = getStudentProgress(student);
+  const payload = progress.payload || {};
+  const tracking = getWeeklyTracking(payload, week.start);
+  const todayKey = localDateKey(referenceDate);
+  const elapsedDays = tracking.days.filter(day => day.key <= todayKey);
+  const missedReadingDays = elapsedDays.filter(day => !day.reading);
+  const missedLoginDays = elapsedDays.filter(day => !day.login);
+  const plan = getHistoricalPlan(student, week);
+  const completedPlanItems = plan.items.filter(item => item.done);
+  const missedPlanItems = plan.items.filter(item => !item.done);
+  const moduleRecord = week.module ? payload.completed?.[week.module.id] : null;
+  const completedAt = moduleRecord?.completedAt ? new Date(moduleRecord.completedAt) : null;
+  const weekEndExclusive = addCalendarDays(week.end, 1);
+  let moduleStatus = "not-applicable";
+  if (week.module) {
+    if (completedAt && completedAt < weekEndExclusive) moduleStatus = "completed";
+    else if (completedAt) moduleStatus = "late";
+    else moduleStatus = week.isCurrent ? "pending" : "missed";
+  }
+  return {
+    student,
+    tracking,
+    elapsedDays,
+    missedReadingDays,
+    missedLoginDays,
+    plan,
+    completedPlanItems,
+    missedPlanItems,
+    moduleStatus
+  };
+}
+
+function formatDayList(days) {
+  if (!days.length) return "Yok";
+  return days.map(day => {
+    const label = formatReadingDay(day.date);
+    return `${label.weekday} ${label.date}`;
+  }).join(", ");
+}
+
+function renderWeeklyHistoryPanel(classRecord, students) {
+  const weeks = getClassProgramWeeks(classRecord, students);
+  const defaultWeek = weeks.length > 1 ? weeks[weeks.length - 2] : weeks[0];
+  if (!teacherStore.reportWeekKey || !weeks.some(week => week.weekKey === teacherStore.reportWeekKey)) {
+    teacherStore.reportWeekKey = defaultWeek.weekKey;
+  }
+  const selectedWeek = weeks.find(week => week.weekKey === teacherStore.reportWeekKey) || defaultWeek;
+  const summaries = students.map(student => getHistoricalStudentWeek(student, selectedWeek));
+  const expectedReadingDays = summaries.reduce((sum, item) => sum + item.elapsedDays.length, 0);
+  const completedReadings = summaries.reduce((sum, item) => sum + item.elapsedDays.filter(day => day.reading).length, 0);
+  const moduleCompleted = summaries.filter(item => item.moduleStatus === "completed").length;
+  const availablePlans = summaries.filter(item => item.plan.source !== "unavailable" && item.plan.items.length);
+  const planPercent = availablePlans.length
+    ? Math.round(availablePlans.reduce((sum, item) => sum + (item.completedPlanItems.length / item.plan.items.length) * 100, 0) / availablePlans.length)
+    : null;
+
+  return `<section class="teacher-history-panel">
+    <div class="teacher-history-header"><div><span class="section-tag">HAFTA RAPORLARI</span><h2>Geçmiş haftalarda kim ne yaptı?</h2><p>Modül, günlük giriş, 5 paragraf ve çalışma planı kayıtlarını hafta hafta inceleyin.</p></div><button class="button secondary small" type="button" data-action="copy-weekly-class-report" data-week-key="${selectedWeek.weekKey}">📋 Bu Haftanın Raporunu Kopyala</button></div>
+    <div class="history-week-tabs" role="tablist" aria-label="Rapor haftası">${weeks.map(week => `<button type="button" role="tab" aria-selected="${week.weekKey === selectedWeek.weekKey}" class="${week.weekKey === selectedWeek.weekKey ? "active" : ""}" data-action="select-report-week" data-week-key="${week.weekKey}"><strong>${week.weekNumber}. Hafta</strong><small>${formatWeekRange(week)}${week.isCurrent ? " • Güncel" : ""}</small></button>`).join("")}</div>
+    <div class="history-summary">
+      <div><span>Seçilen dönem</span><strong>${selectedWeek.weekNumber}. Hafta</strong><small>${formatWeekRange(selectedWeek)}</small></div>
+      <div><span>Modülünü zamanında bitiren</span><strong>${moduleCompleted} / ${students.length}</strong><small>${selectedWeek.module ? escapeHTML(selectedWeek.module.title) : "Modül dönemi tamamlandı"}</small></div>
+      <div><span>5 paragraf tamamlama</span><strong>${completedReadings} / ${expectedReadingDays}</strong><small>Kayıt açılmış günler</small></div>
+      <div><span>Plan tamamlama ortalaması</span><strong>${planPercent === null ? "—" : `%${planPercent}`}</strong><small>${planPercent === null ? "Arşiv kaydı yok" : `${availablePlans.length} öğrenci`}</small></div>
+    </div>
+    ${students.length ? `<div class="history-student-list">${summaries.map(item => {
+      const moduleLabels = {
+        completed: ["✓ Zamanında tamamladı", "done"],
+        late: ["↗ Sonradan tamamladı", "late"],
+        pending: ["○ Bu hafta devam ediyor", "pending"],
+        missed: ["⚠ Haftasında tamamlamadı", "missed"],
+        "not-applicable": ["Modül görevi yok", "neutral"]
+      };
+      const moduleLabel = moduleLabels[item.moduleStatus];
+      const readCount = item.elapsedDays.filter(day => day.reading).length;
+      const loginCount = item.elapsedDays.filter(day => day.login).length;
+      const planAvailable = item.plan.source !== "unavailable";
+      return `<article class="history-student-card">
+        <div class="history-student-name"><span>${escapeHTML(item.student.name.charAt(0).toLocaleUpperCase("tr-TR"))}</span><div><strong>${escapeHTML(item.student.name)}</strong><small>${loginCount}/${item.elapsedDays.length} gün giriş</small></div></div>
+        <div class="history-report-cell"><small>${selectedWeek.module ? `${selectedWeek.weekNumber}. MODÜL` : "MODÜL"}</small><strong class="history-status ${moduleLabel[1]}">${moduleLabel[0]}</strong><p>${selectedWeek.module ? escapeHTML(selectedWeek.module.title) : "10 haftalık modül dönemi dışında"}</p></div>
+        <div class="history-report-cell"><small>GİRİŞ VE 5 PARAGRAF</small><strong>${loginCount} giriş • ${readCount} okuma</strong><p>${item.missedReadingDays.length ? `Okuma eksik: ${escapeHTML(formatDayList(item.missedReadingDays))}` : "Okuma günü kaçırılmadı."}${item.missedLoginDays.length ? ` • Giriş yok: ${escapeHTML(formatDayList(item.missedLoginDays))}` : ""}</p></div>
+        <div class="history-report-cell"><small>HAFTALIK PLAN</small>${planAvailable ? `<strong>${item.completedPlanItems.length} / ${item.plan.items.length} görev</strong><p>${item.missedPlanItems.length ? `Tamamlanmayan: ${escapeHTML(item.missedPlanItems.map(planItem => `${planItem.day} • ${planItem.subject || planItem.topic}`).join(", "))}` : item.plan.items.length ? "Planlanan görevler tamamlandı." : "Bu hafta plan oluşturulmadı."}</p>` : `<strong>Arşiv kaydı yok</strong><p>Bu tarihte plan geçmişi henüz saklanmıyordu.</p>`}</div>
+        <button class="history-inspect" type="button" data-action="view-student" data-student-id="${item.student.id}">İncele →</button>
+      </article>`;
+    }).join("")}</div>` : `<div class="empty-mini wide">Bu sınıfta raporlanacak öğrenci bulunmuyor.</div>`}
+    <p class="history-archive-note">Giriş, okuma ve modül kayıtları mevcut tarihlerden alınır. Haftalık plan arşivi bu özellik yayınlandıktan sonra her Perşembe otomatik olarak yeni haftaya aktarılır.</p>
+  </section>`;
+}
+
+function buildWeeklyClassReport(classId, weekKey) {
+  const classRecord = teacherStore.classes.find(item => item.id === classId);
+  if (!classRecord) return "";
+  const students = teacherStore.students.filter(item => item.class_id === classId);
+  const week = getClassProgramWeeks(classRecord, students).find(item => item.weekKey === weekKey);
+  if (!week) return "";
+  const lines = students.map(student => {
+    const item = getHistoricalStudentWeek(student, week);
+    const moduleText = {
+      completed: "Zamanında tamamladı",
+      late: "Sonradan tamamladı",
+      pending: "Devam ediyor",
+      missed: "Haftasında tamamlamadı",
+      "not-applicable": "Modül görevi yok"
+    }[item.moduleStatus];
+    const readCount = item.elapsedDays.filter(day => day.reading).length;
+    const loginCount = item.elapsedDays.filter(day => day.login).length;
+    const planText = item.plan.source === "unavailable"
+      ? "Arşiv kaydı yok"
+      : `${item.completedPlanItems.length}/${item.plan.items.length} görev${item.missedPlanItems.length ? ` • Tamamlanmayan: ${item.missedPlanItems.map(planItem => `${planItem.day} ${planItem.subject || planItem.topic}`).join(", ")}` : ""}`;
+    return `${student.name}\n- Modül: ${moduleText}\n- Giriş: ${loginCount}/${item.elapsedDays.length} gün${item.missedLoginDays.length ? ` • Eksik: ${formatDayList(item.missedLoginDays)}` : ""}\n- 5 paragraf: ${readCount}/${item.elapsedDays.length} gün${item.missedReadingDays.length ? ` • Eksik: ${formatDayList(item.missedReadingDays)}` : ""}\n- Plan: ${planText}`;
+  });
+  return `VERİMLİ DERS ÇALIŞMA AKADEMİSİ\nHAFTALIK SINIF RAPORU\n\nSınıf: ${classRecord.name}\nDönem: ${week.weekNumber}. Hafta • ${formatWeekRange(week)}\nModül: ${week.module ? `${week.module.id}. ${week.module.title}` : "Modül görevi yok"}\n\n${lines.join("\n\n")}`;
+}
+
 function renderTeacherDashboard() {
   const activeClass = teacherStore.classes.find(item => item.id === teacherStore.activeClassId) || null;
   const visibleStudents = activeClass ? teacherStore.students.filter(item => item.class_id === activeClass.id) : [];
@@ -1801,6 +2020,7 @@ function renderTeacherDashboard() {
     </div>
 
     ${activeClass ? renderTeacherAlertCenter(visibleAlerts, overdueModuleStudents, pendingReadingStudents) : ""}
+    ${activeClass ? renderWeeklyHistoryPanel(activeClass, visibleStudents) : ""}
 
     <div class="teacher-dashboard-grid">
       <aside class="teacher-class-panel">
@@ -2074,7 +2294,7 @@ async function teacherLogout() {
   await cloudClient?.auth.signOut({ scope: "local" });
   localStorage.removeItem(STORAGE_KEYS.cloudSession);
   cloudSession = null;
-  teacherStore = { classes: [], students: [], activeClassId: null, selectedStudentId: null };
+  teacherStore = { classes: [], students: [], activeClassId: null, selectedStudentId: null, reportWeekKey: null };
   showWorkspace("gateway");
   document.querySelector("#teacher-login-form")?.reset();
 }
@@ -2088,6 +2308,8 @@ function resetAllData() {
   state.checks = {};
   state.completed = {};
   state.plan = createEmptyPlan();
+  state.planHistory = {};
+  state.planWeekKey = null;
   state.quizzes = {};
   state.activities = {};
   state.attendance = {};
@@ -2262,8 +2484,7 @@ document.addEventListener("click", event => {
   else if (action === "clear-plan") {
     if (window.confirm("Haftalık planındaki tüm alanları temizlemek istediğine emin misin?")) {
       state.plan = createEmptyPlan();
-      localStorage.removeItem(STORAGE_KEYS.plan);
-      scheduleStudentSync();
+      saveCurrentPlanSnapshot();
       renderPlan();
       showToast("Plan temizlendi. Yeni bir hafta planlayabilirsin. 🌿");
     }
@@ -2289,7 +2510,17 @@ document.addEventListener("click", event => {
   else if (action === "reload-teacher") loadTeacherData();
   else if (action === "select-teacher-class") {
     teacherStore.activeClassId = actionButton.dataset.classId;
+    teacherStore.reportWeekKey = null;
     renderTeacherDashboard();
+  }
+  else if (action === "select-report-week") {
+    teacherStore.reportWeekKey = actionButton.dataset.weekKey;
+    renderTeacherDashboard();
+    document.querySelector(".teacher-history-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  else if (action === "copy-weekly-class-report") {
+    const report = buildWeeklyClassReport(teacherStore.activeClassId, actionButton.dataset.weekKey);
+    if (report) copyText(report, "Seçilen haftanın sınıf raporu kopyalandı. 📋");
   }
   else if (action === "toggle-add-student") {
     const form = document.querySelector("#add-student-form");
@@ -2367,7 +2598,7 @@ document.addEventListener("change", event => {
     }
     const isCompleted = event.target.checked;
     state.plan = readPlanForm();
-    saveData(STORAGE_KEYS.plan, state.plan);
+    saveCurrentPlanSnapshot();
     renderPlan();
     showToast(isCompleted ? "Görev tamamlandı olarak kaydedildi. Harika! ✓" : "Görev yeniden devam ediyor olarak işaretlendi.");
   }
