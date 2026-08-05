@@ -413,7 +413,7 @@ a:focus-visible {
 .reading-week-summary { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 18px; padding: 10px 13px; border-radius: 13px; color: #394563; background: #f2f4ff; font-size: 11px; }
 .reading-week-summary strong { color: var(--primary-dark); font-size: 13px; }
 .reading-week-grid { display: grid; grid-template-columns: repeat(7, minmax(74px, 1fr)); gap: 7px; margin-top: 9px; }
-.reading-day { display: grid; min-height: 82px; place-items: center; align-content: center; padding: 9px 5px; border: 1px solid var(--line); border-radius: 13px; color: var(--muted); background: #fafbfe; text-align: center; }
+.reading-day { display: grid; min-height: 82px; place-items: center; align-content: center; width: 100%; padding: 9px 5px; border: 1px solid var(--line); border-radius: 13px; color: var(--muted); background: #fafbfe; font: inherit; text-align: center; cursor: pointer; }
 .reading-day span, .reading-day strong, .reading-day small { display: block; }
 .reading-day span { font-size: 9px; font-weight: 900; text-transform: uppercase; }
 .reading-day strong { margin: 2px 0; color: var(--ink); font-size: 11px; }
@@ -422,16 +422,25 @@ a:focus-visible {
 .reading-day.done { border-color: #94d7c1; color: #237c62; background: #eefaf6; }
 .reading-day.done strong { color: #176b56; }
 .reading-day.missed { border-color: #f0d3db; color: #a8556b; background: #fff5f7; }
+.reading-day.late { border-color: #e59aac; color: #a4435d; background: #ffecef; }
+.reading-day.late strong { color: #96384f; }
+.reading-day.selected { box-shadow: 0 0 0 2px var(--primary); transform: translateY(-2px); }
+.reading-day.missed:hover { border-color: #d57b91; background: #ffe9ee; }
 .reading-day.locked { opacity: .64; }
+.reading-selected-note { margin: 0 0 14px; padding: 9px 12px; border-radius: 11px; color: #3f4b68; background: #f2f4ff; font-size: 10px; }
+.reading-selected-note.late { color: #9a3e56; background: #fff0f3; }
+.reading-selected-note strong { font-weight: 900; }
 .reading-mission-actions { display: grid; grid-template-columns: minmax(220px, .72fr) 1.28fr; gap: 12px; align-items: stretch; }
 .reading-launch { justify-content: center; color: #fff; border-color: transparent; background: linear-gradient(135deg, #5267e8, #7658d4); box-shadow: 0 10px 24px rgba(82,103,232,.2); }
 .reading-launch:hover { transform: translateY(-1px); box-shadow: 0 14px 28px rgba(82,103,232,.26); }
 .reading-confirmation { display: flex; min-height: 54px; align-items: center; gap: 12px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 15px; color: var(--ink); background: #f8f9fd; text-align: left; cursor: pointer; }
 .reading-confirmation.done { border-color: #94d7c1; background: #eefaf6; }
+.reading-confirmation.late { border-color: #e59aac; background: #fff0f3; }
 .reading-confirmation:disabled { cursor: not-allowed; opacity: .72; }
 .reading-confirmation.done:disabled { opacity: 1; }
 .reading-check { display: grid !important; width: 24px; height: 24px; flex: 0 0 24px; place-items: center; border: 2px solid #aab2c7; border-radius: 7px; color: #fff; font-size: 13px; font-weight: 900; }
 .reading-confirmation.done .reading-check { border-color: #2fa77f; background: #2fa77f; }
+.reading-confirmation.late .reading-check { border-color: #c2536c; background: #c2536c; }
 .reading-confirmation span, .reading-confirmation b, .reading-confirmation small { display: block; }
 .reading-confirmation b { color: var(--ink); font-size: 12px; }
 .reading-confirmation small { margin-top: 2px; color: var(--muted); font-size: 9px; }
@@ -1088,6 +1097,7 @@ body {
 .teacher-day-card { display: grid; grid-template-columns: 92px 1fr; gap: 12px; padding: 13px; border: 1px solid var(--line); border-radius: 14px; background: #fafbfe; }
 .teacher-day-card.today { border-color: #9eabf5; background: #f1f3ff; }
 .teacher-day-card.done { border-color: #a7ddcc; background: #effaf6; }
+.teacher-day-card.late { border-color: #e5a3b2; background: #fff0f3; }
 .teacher-day-heading span, .teacher-day-heading strong, .teacher-day-heading small { display: block; }
 .teacher-day-heading span { color: var(--muted); font-size: 8px; font-weight: 900; text-transform: uppercase; }
 .teacher-day-heading strong { margin-top: 2px; font-size: 13px; }
@@ -1096,6 +1106,7 @@ body {
 .teacher-day-signals span { padding: 6px 8px; border-radius: 9px; font-size: 9px; font-weight: 800; }
 .teacher-day-signals .yes { color: #176b56; background: #dcf4eb; }
 .teacher-day-signals .no { color: #9a5266; background: #fff0f3; }
+.teacher-day-signals .late { color: #9a3e56; background: #ffe1e8; }
 .teacher-day-signals .waiting { color: #72798c; background: #eceff5; }
 .detail-module-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 13px; }
 .detail-module { display: flex; align-items: center; gap: 9px; padding: 9px; border: 1px solid var(--line); border-radius: 11px; color: var(--muted); }
