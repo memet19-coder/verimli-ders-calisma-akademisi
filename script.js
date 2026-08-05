@@ -2116,6 +2116,99 @@ function formatRelativeDate(iso) {
   return formatDate(iso);
 }
 
+function getStudentReportWeeks(student) {
+  const classRecord = teacherStore.classes.find(item => item.id === student.class_id) || { created_at: student.created_at };
+  return getClassProgramWeeks(classRecord, [student]).map(week => ({
+    week,
+    summary: getHistoricalStudentWeek(student, week)
+  }));
+}
+
+function getStudentReportMetrics(student) {
+  const progress = getStudentProgress(student);
+  const payload = progress.payload || {};
+  const weeks = getStudentReportWeeks(student);
+  const readingEntries = Object.entries(payload.readingLog || {}).filter(([, entry]) => isReadingEntryCompleted(entry));
+  const lateReadings = readingEntries.filter(([key, entry]) => isLateReadingEntry(entry, entry.readingDate || key));
+  const completedIds = Object.keys(payload.completed || {}).map(Number).filter(id => MODULES.some(module => module.id === id));
+  const answeredCount = Object.values(payload.answers || {}).filter(record => Object.values(record?.values || {}).some(value => String(value || "").trim())).length;
+  const activityCount = Object.values(payload.activities || {}).filter(record => Object.keys(record?.choices || {}).length > 0).length;
+  const planTotals = weeks.reduce((totals, item) => {
+    totals.planned += item.summary.plan.items.length;
+    totals.done += item.summary.completedPlanItems.length;
+    return totals;
+  }, { planned: 0, done: 0 });
+  const totalLogins = Object.keys(payload.attendance || {}).length;
+  const totalParagraphs = readingEntries.reduce((sum, [, entry]) => sum + Number(entry?.paragraphs || 5), 0);
+  return {
+    progress,
+    payload,
+    weeks,
+    completedIds,
+    answeredCount,
+    activityCount,
+    planTotals,
+    totalLogins,
+    readingCount: readingEntries.length,
+    lateReadingCount: lateReadings.length,
+    totalParagraphs
+  };
+}
+
+function studentReportModuleStatus(summary) {
+  return {
+    completed: "Tamamlandı",
+    late: "Geç tamamlandı",
+    missed: "Tamamlanmadı",
+    pending: "Devam ediyor",
+    "not-applicable": "Program dışı"
+  }[summary.moduleStatus] || "Başlanmadı";
+}
+
+function openStudentPdfReport(studentId) {
+  const student = teacherStore.students.find(item => item.id === studentId);
+  if (!student) return;
+  const reportWindow = window.open("", "_blank");
+  if (!reportWindow) {
+    showToast("PDF raporu için yeni pencere iznini açabilirsin.", "error");
+    return;
+  }
+  const metrics = getStudentReportMetrics(student);
+  const { payload, weeks } = metrics;
+  const reportDate = new Intl.DateTimeFormat("tr-TR", { dateStyle: "long" }).format(new Date());
+  const moduleRows = weeks.filter(item => item.week.module).map(({ week, summary }) => {
+    const module = week.module;
+    const answer = payload.answers?.[module.id];
+    const answerSaved = Boolean(answer && Object.values(answer.values || {}).some(value => String(value || "").trim()));
+    const planText = summary.plan.items.length ? `${summary.completedPlanItems.length}/${summary.plan.items.length} görev` : "Plan yok";
+    const paragraphText = `${summary.tracking.readingCount * 5} paragraf`;
+    const lateText = summary.lateReadingDays.length ? ` • ${summary.lateReadingDays.length} telafi` : "";
+    const missedText = summary.missedReadingDays.length ? ` • ${summary.missedReadingDays.length} eksik` : "";
+    return `<tr><td><strong>${week.weekNumber}. Hafta</strong><small>${escapeHTML(formatWeekRange(week))}</small></td><td>${escapeHTML(module.title)}<small>${studentReportModuleStatus(summary)}</small></td><td>${paragraphText}<small>${summary.tracking.readingCount}/${summary.elapsedDays.length} gün${lateText}${missedText}</small></td><td>${summary.tracking.loginCount}/${summary.elapsedDays.length}<small>günlük giriş</small></td><td>${planText}<small>${answerSaved ? "Uygulama yanıtlandı" : "Uygulama yanıtı yok"}</small></td></tr>`;
+  }).join("");
+  const noRows = `<tr><td colspan="5" class="empty">Henüz haftalık kayıt oluşmadı.</td></tr>`;
+  const lateDates = Object.entries(payload.readingLog || {}).filter(([key, entry]) => isLateReadingEntry(entry, entry?.readingDate || key)).sort(([a], [b]) => a.localeCompare(b)).map(([key, entry]) => `${formatDate(entry.completedAt)} (${formatDate(key)})`).join(", ");
+  const completedModules = metrics.completedIds.length ? metrics.completedIds.map(id => `${id}. ${MODULES.find(module => module.id === id)?.title || ""}`).join(" • ") : "Henüz tamamlanan modül yok.";
+  const answerSections = MODULES.map(module => {
+    const answer = payload.answers?.[module.id];
+    const answerItems = module.fields.filter(field => String(answer?.values?.[field[0]] || "").trim());
+    const activity = payload.activities?.[module.id];
+    const lab = ACTIVITY_LABS[module.id];
+    const hasActivity = activity && (Object.keys(activity.choices || {}).length || String(activity.reflection || "").trim());
+    if (!answerItems.length && !hasActivity) return "";
+    const answersHtml = answerItems.map(field => `<div><small>${escapeHTML(field[1])}</small><p>${escapeHTML(answer.values[field[0]])}</p></div>`).join("");
+    const activityHtml = hasActivity ? `<div class="activity-note"><strong>🎯 Etkileşimli atölye${lab ? ` • ${escapeHTML(lab.title)}` : ""}</strong><p>${escapeHTML(activity.reflection || "Seçimler yapıldı; yazılı düşünce notu eklenmedi.")}</p></div>` : "";
+    return `<article class="answer-block"><h3>${module.icon} ${module.id}. ${escapeHTML(module.title)}</h3>${answer?.savedAt ? `<small class="saved-date">Kaydedilme: ${escapeHTML(formatDate(answer.savedAt))}</small>` : ""}<div class="answer-grid">${answersHtml}</div>${activityHtml}</article>`;
+  }).filter(Boolean).join("");
+  const planSections = weeks.flatMap(({ week, summary }) => summary.plan.items.map(item => `<li><strong>${week.weekNumber}. Hafta • ${escapeHTML(item.day)}</strong> ${escapeHTML(item.subject || "Ders")} — ${escapeHTML(item.topic || "Konu belirtilmedi")} <em>${item.done ? "Tamamlandı" : "Bekliyor"}</em></li>`)).join("");
+  reportWindow.document.open();
+  reportWindow.document.write(`<!doctype html><html lang="tr"><head><meta charset="utf-8"><title>${escapeHTML(student.name)} • Akademi PDF Raporu</title><style>
+    :root{color-scheme:light}*{box-sizing:border-box}body{margin:0;padding:32px;color:#1e2949;background:#f5f7fc;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.5}.report{max-width:1050px;margin:0 auto;background:#fff;border:1px solid #dfe4f1;border-radius:22px;overflow:hidden;box-shadow:0 12px 35px rgba(36,44,80,.12)}.report-head{padding:30px 34px;color:#fff;background:linear-gradient(125deg,#3548b5,#6475ec)}.brand{font-size:11px;font-weight:800;letter-spacing:.14em;opacity:.85}.report-head h1{margin:8px 0 4px;font-size:29px}.report-head p{margin:0;opacity:.86}.body{padding:26px 34px}.meta{display:flex;justify-content:space-between;gap:16px;padding-bottom:18px;color:#66718b;border-bottom:1px solid #e6e9f2}.stats{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin:20px 0}.stat{padding:13px;border:1px solid #e5e8f2;border-radius:13px;background:#f8f9fd}.stat span{display:block;color:#69738b;font-size:10px}.stat strong{display:block;margin-top:3px;color:#1f2c53;font-size:20px}.section{margin-top:24px}.section h2{margin:0 0 10px;font-size:17px}.section p{margin:4px 0;color:#5d6882}.pill{display:inline-block;padding:5px 9px;border-radius:999px;color:#275b4b;background:#e3f6ee;font-weight:700}.late-list{padding:12px 14px;border-radius:12px;color:#93435b;background:#fff0f3}.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px solid #e7eaf2;text-align:left;vertical-align:top}th{color:#66718b;background:#f7f8fc;font-size:10px;letter-spacing:.04em}td strong,td small{display:block}td small{margin-top:2px;color:#74809a;font-size:10px}.empty{text-align:center;color:#7a849a;padding:20px}.footer{margin-top:28px;padding-top:14px;border-top:1px solid #e6e9f2;color:#7a849a;font-size:10px}.actions{display:flex;justify-content:flex-end;gap:8px;margin:0 auto 14px;max-width:1050px}.actions button{border:0;border-radius:10px;padding:10px 14px;color:#fff;background:#5267e8;font-weight:700;cursor:pointer}.actions button.secondary{color:#26335b;background:#e9edff}@media(max-width:800px){body{padding:12px}.body,.report-head{padding:22px 18px}.stats{grid-template-columns:repeat(2,1fr)}.meta{display:block}.meta span{display:block;margin-top:4px}.actions{justify-content:stretch}.actions button{flex:1}}@media print{body{padding:0;background:#fff;font-size:10px}.report{max-width:none;border:0;border-radius:0;box-shadow:none}.actions{display:none}.report-head{-webkit-print-color-adjust:exact;print-color-adjust:exact}.stat,.late-list,th{background:#f7f8fc;-webkit-print-color-adjust:exact;print-color-adjust:exact}table{page-break-inside:auto}tr{page-break-inside:avoid;page-break-after:auto}.section{break-inside:avoid}}
+  </style></head><body><div class="actions"><button onclick="window.print()">PDF olarak kaydet / Yazdır</button><button class="secondary" onclick="window.close()">Kapat</button></div><main class="report"><header class="report-head"><div class="brand">VERİMLİ DERS ÇALIŞMA AKADEMİSİ</div><h1>${escapeHTML(student.name)} • Çalışma Raporu</h1><p>Bugüne kadar yapılan çalışmaların haftalık özeti</p></header><div class="body"><div class="meta"><span><strong>Sınıf:</strong> ${escapeHTML(teacherStore.classes.find(item => item.id === student.class_id)?.name || "—")}</span><span><strong>Rapor tarihi:</strong> ${escapeHTML(reportDate)}</span><span><strong>İlk kayıt:</strong> ${student.created_at ? escapeHTML(formatDate(student.created_at)) : "—"}</span></div><section class="stats"><div class="stat"><span>Tamamlanan modül</span><strong>${metrics.completedIds.length} / 10</strong></div><div class="stat"><span>Okunan paragraf</span><strong>${metrics.totalParagraphs}</strong></div><div class="stat"><span>Okuma günü</span><strong>${metrics.readingCount}</strong></div><div class="stat"><span>Telafi okuması</span><strong>${metrics.lateReadingCount}</strong></div><div class="stat"><span>Günlük giriş</span><strong>${metrics.totalLogins}</strong></div><div class="stat"><span>Plan görevi</span><strong>${metrics.planTotals.done} / ${metrics.planTotals.planned}</strong></div></section><section class="section"><h2>Modül ve hafta dökümü</h2><p>Her hafta öğrencinin modül, giriş, paragraf okuma, telafi ve plan durumu birlikte gösterilir.</p><div class="table-wrap"><table><thead><tr><th>Hafta</th><th>Modül</th><th>Paragraf okuması</th><th>Giriş</th><th>Plan / uygulama</th></tr></thead><tbody>${moduleRows || noRows}</tbody></table></div></section><section class="section"><h2>Tamamlanan modüller</h2><p class="pill">${escapeHTML(completedModules)}</p></section>${answerSections ? `<section class="section"><h2>Modül cevapları ve uygulamalar</h2>${answerSections}</section>` : ""}${planSections ? `<section class="section"><h2>Haftalık plan görevleri</h2><ul class="plan-list">${planSections}</ul></section>` : ""}${lateDates ? `<section class="section"><h2>Telafi edilen okumalar</h2><p class="late-list">${escapeHTML(lateDates)}<br><small>Parantez içindeki tarih, okumanın ait olduğu gündür.</small></p></section>` : ""}<section class="section"><h2>Genel not</h2><p>${metrics.completedIds.length >= 7 ? "Düzenli ilerliyor. Bu alışkanlığı korumaya devam edebilir." : metrics.readingCount >= 10 ? "Okuma alışkanlığı güçleniyor. Modül uygulamalarını da düzenli tamamlaması faydalı olur." : "Küçük ve düzenli adımlarla ilerlemesi desteklenebilir."}</p></section><div class="footer">Bu rapor Verimli Ders Çalışma Akademisi kayıtlarından otomatik olarak oluşturulmuştur.</div></div></main><script>setTimeout(function(){window.focus();window.print()},450)</script></body></html>`);
+  reportWindow.document.close();
+  reportWindow.focus();
+}
+
 function renderTeacherStudentDetail(studentId) {
   const student = teacherStore.students.find(item => item.id === studentId);
   if (!student) return;
@@ -2157,7 +2250,7 @@ function renderTeacherStudentDetail(studentId) {
       }).join("")}</div>` : `<div class="empty-mini wide">Öğrenci henüz bir uygulama cevabı kaydetmedi.</div>`}</section>
       <section class="detail-section"><div class="detail-title"><div><span class="section-tag">HAFTALIK PLAN</span><h3>Planlanan çalışmalar</h3></div></div>${plannedItems.length ? `<div class="detail-plan-list">${plannedItems.map(item => `<div class="detail-plan-item ${item.done ? "done" : ""}"><span>${item.done ? "✓" : item.day.slice(0, 2)}</span><div><strong>${escapeHTML(item.subject)} • ${escapeHTML(item.topic)}</strong><small>${escapeHTML(item.day)} • ${escapeHTML(item.duration)} dakika çalışma${Number(item.breakDuration) ? ` • ${escapeHTML(item.breakDuration)} dakika mola` : ""}${item.note ? ` • ${escapeHTML(item.note)}` : ""}</small></div></div>`).join("")}</div>` : `<div class="empty-mini wide">Öğrenci henüz haftalık plan oluşturmadı.</div>`}</section>
     </div>
-    <footer class="student-detail-footer"><button class="button ghost" type="button" data-action="close-student-detail">Kapat</button><button class="button student-backup-button" type="button" data-action="backup-remote-student" data-student-id="${student.id}">💾 Öğrenciyi Yedekle</button><button class="button preview-launch" type="button" data-action="preview-student" data-student-id="${student.id}">👁️ Öğrenci Panelini Aç</button><button class="button secondary" type="button" data-action="manage-student" data-student-id="${student.id}">✏️ Öğrenciyi Düzenle</button><button class="button primary" type="button" data-action="copy-remote-report" data-student-id="${student.id}">📋 Öğrenci Raporunu Kopyala</button></footer>
+    <footer class="student-detail-footer"><button class="button ghost" type="button" data-action="close-student-detail">Kapat</button><button class="button student-backup-button" type="button" data-action="backup-remote-student" data-student-id="${student.id}">💾 Öğrenciyi Yedekle</button><button class="button preview-launch" type="button" data-action="preview-student" data-student-id="${student.id}">👁️ Öğrenci Panelini Aç</button><button class="button secondary" type="button" data-action="manage-student" data-student-id="${student.id}">✏️ Öğrenciyi Düzenle</button><button class="button primary" type="button" data-action="print-student-report" data-student-id="${student.id}">📄 PDF Raporu</button><button class="button primary" type="button" data-action="copy-remote-report" data-student-id="${student.id}">📋 Öğrenci Raporunu Kopyala</button></footer>
   </article></div>`);
 }
 
@@ -2591,6 +2684,7 @@ document.addEventListener("click", event => {
   else if (action === "delete-student") deleteTeacherStudent(actionButton.dataset.studentId);
   else if (action === "refresh-student-preview") window.location.reload();
   else if (action === "close-student-preview") returnToTeacherPanel();
+  else if (action === "print-student-report") openStudentPdfReport(actionButton.dataset.studentId);
   else if (action === "copy-remote-report") {
     const student = teacherStore.students.find(item => item.id === actionButton.dataset.studentId);
     if (student) copyText(buildRemoteStudentReport(student), `${student.name} için rapor kopyalandı. 📋`);
