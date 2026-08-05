@@ -24,6 +24,7 @@ let cloudSession = null;
 let cloudSyncTimer = null;
 let studentPreviewMode = false;
 let previewStudentRecord = null;
+let readingTargetDateKey = null;
 let teacherStore = { classes: [], students: [], activeClassId: null, selectedStudentId: null, reportWeekKey: null };
 
 const STORAGE_KEYS = {
@@ -44,7 +45,7 @@ const STORAGE_KEYS = {
 const DAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
 const PREVIEW_BLOCKED_ACTIONS = new Set([
   "quiz-option", "activity-choice", "activity-confidence", "activity-day",
-  "save-activity-reflection", "visit-reading-workshop", "complete-daily-reading", "save-draft", "add-plan-task", "remove-plan-task",
+  "save-activity-reflection", "select-reading-day", "visit-reading-workshop", "complete-daily-reading", "save-draft", "add-plan-task", "remove-plan-task",
   "clear-plan", "select-theme", "download-student-backup", "reset-data"
 ]);
 
@@ -675,6 +676,13 @@ function isReadingEntryCompleted(entry) {
   return Boolean(entry === true || entry?.completedAt);
 }
 
+function isLateReadingEntry(entry, readingDateKey) {
+  if (!isReadingEntryCompleted(entry)) return false;
+  if (entry?.late === true) return true;
+  if (!entry?.completedAt || !readingDateKey) return false;
+  return localDateKey(new Date(entry.completedAt)) > readingDateKey;
+}
+
 function hasReadingForModule(moduleId, payload = state) {
   if (payload.activities?.[moduleId]?.readingCompleted) return true;
   return Object.values(payload.readingLog || {}).some(entry => isReadingEntryCompleted(entry) && Number(entry.moduleId) === Number(moduleId));
@@ -688,6 +696,7 @@ function getWeeklyTracking(payload = state, referenceDate = new Date()) {
     ...day,
     login: Boolean(attendance[day.key]),
     reading: isReadingEntryCompleted(readingLog[day.key]),
+    late: isLateReadingEntry(readingLog[day.key], day.key),
     readingEntry: readingLog[day.key] || null
   }));
   return {
@@ -1425,28 +1434,37 @@ function renderModuleDetail(moduleId) {
 
 function renderReadingMission(moduleId) {
   const tracking = getWeeklyTracking();
-  const todayEntry = state.readingLog[tracking.todayKey] || {};
-  const visitedToday = Boolean(todayEntry.visitedAt);
-  const completedToday = isReadingEntryCompleted(todayEntry);
+  const validTarget = readingTargetDateKey && tracking.days.some(day => day.key === readingTargetDateKey && day.key <= tracking.todayKey);
+  const targetDateKey = validTarget ? readingTargetDateKey : tracking.todayKey;
+  const targetDay = tracking.days.find(day => day.key === targetDateKey) || tracking.days[0];
+  const targetEntry = state.readingLog[targetDateKey] || {};
+  const targetIsToday = targetDateKey === tracking.todayKey;
+  const targetIsPast = targetDateKey < tracking.todayKey;
+  const visitedTarget = Boolean(targetEntry.visitedAt);
+  const completedTarget = isReadingEntryCompleted(targetEntry);
   const weekCompleted = tracking.readingCount === 7;
   const rangeLabel = `${new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "long" }).format(tracking.start)} – ${new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "long" }).format(tracking.end)}`;
-  return `<section class="reading-mission ${completedToday ? "completed" : ""} ${weekCompleted ? "week-complete" : ""}" id="reading-mission-${moduleId}">
+  const targetLabel = formatReadingDay(targetDay.date);
+  return `<section class="reading-mission ${completedTarget ? "completed" : ""} ${weekCompleted ? "week-complete" : ""}" id="reading-mission-${moduleId}">
     <div class="reading-mission-visual"><span>5</span><small>HER GÜN PARAGRAF</small><i>📚</i><b>${tracking.readingCount}/7 gün</b></div>
     <div class="reading-mission-content">
       <span class="section-tag">PERŞEMBEDEN ÇARŞAMBAYA GÜNLÜK OKUMA</span>
       <h3>Her gün 5 paragraf, küçük ama güçlü bir alışkanlık</h3>
-      <p><strong>${rangeLabel}</strong> tarihleri arasında her gün Okuma Atölyesi’ne girip <strong>5 paragraf</strong> oku. Yalnızca bugünün kaydı açılır; gelecek günler önceden, geçmiş günler ise sonradan işaretlenemez.</p>
+      <p><strong>${rangeLabel}</strong> tarihleri arasında her gün Okuma Atölyesi’ne girip <strong>5 paragraf</strong> oku. Bir günü kaçırırsan o günü sonradan telafi edebilirsin; telafi edilen kayıtlar kırmızı görünür.</p>
       <div class="reading-week-summary"><span>Bu haftaki ilerlemen</span><strong>${tracking.readingCount} / 7 gün</strong></div>
       <div class="reading-week-grid">${tracking.days.map(day => {
         const labels = formatReadingDay(day.date);
         const isToday = day.key === tracking.todayKey;
         const isPast = day.key < tracking.todayKey;
-        const status = day.reading ? "done" : isToday ? "today" : isPast ? "missed" : "locked";
-        const statusText = day.reading ? "✓ Okundu" : isToday ? "Bugün" : isPast ? "Kaçırıldı" : "Kilitli";
-        return `<div class="reading-day ${status}" aria-label="${escapeHTML(labels.weekday)} ${escapeHTML(labels.date)}: ${statusText}"><span>${escapeHTML(labels.weekday)}</span><strong>${escapeHTML(labels.date)}</strong><small>${statusText}</small></div>`;
+        const isSelected = day.key === targetDateKey;
+        const status = day.reading ? (day.late ? "late" : "done") : isToday ? "today" : isPast ? "missed" : "locked";
+        const statusText = day.reading ? (day.late ? "↺ Telafi edildi" : "✓ Okundu") : isToday ? "Bugün" : isPast ? "Kaçırıldı • Telafi et" : "Kilitli";
+        const dayButton = !isPast && !isToday ? `<div class="reading-day ${status} ${isSelected ? "selected" : ""}" aria-label="${escapeHTML(labels.weekday)} ${escapeHTML(labels.date)}: ${statusText}"><span>${escapeHTML(labels.weekday)}</span><strong>${escapeHTML(labels.date)}</strong><small>${statusText}</small></div>` : `<button type="button" class="reading-day ${status} ${isSelected ? "selected" : ""}" data-action="select-reading-day" data-module-id="${moduleId}" data-reading-date="${day.key}" aria-label="${escapeHTML(labels.weekday)} ${escapeHTML(labels.date)}: ${statusText}"><span>${escapeHTML(labels.weekday)}</span><strong>${escapeHTML(labels.date)}</strong><small>${statusText}</small></button>`;
+        return dayButton;
       }).join("")}</div>
-      <ol><li>“Bugünkü Okumayı Aç” düğmesiyle Okuma Atölyesi’ne git.</li><li>Acele etmeden 5 paragraf oku.</li><li>Uygulamaya dönüp yalnızca bugünün kaydını tamamla.</li></ol>
-      <div class="reading-mission-actions"><a class="button reading-launch" href="https://memet19-coder.github.io/okuma-takip-anlama-atolyesi/" target="_blank" rel="noopener noreferrer" data-action="visit-reading-workshop" data-module-id="${moduleId}">Bugünkü Okumayı Aç <span>↗</span></a><button class="reading-confirmation ${completedToday ? "done" : ""}" type="button" data-action="complete-daily-reading" data-module-id="${moduleId}" ${completedToday || !visitedToday ? "disabled" : ""}><span class="reading-check">${completedToday ? "✓" : "□"}</span><span><b>${completedToday ? "Bugünün 5 paragrafı tamamlandı" : visitedToday ? "5 paragrafı okudum" : "Önce Okuma Atölyesi’ni aç"}</b><small>${completedToday ? `${formatDate(todayEntry.completedAt)} tarihinde kaydedildi.` : visitedToday ? "Okumanı bitirdiysen bugünün kaydını tamamla." : "Düğme, Okuma Atölyesi’ni açtıktan sonra etkinleşir."}</small></span></button></div>
+      <ol><li>${targetIsToday ? "Bugünkü" : `${targetLabel.weekday} ${targetLabel.date} tarihindeki`} okumayı seç.</li><li>Okuma Atölyesi’ni açıp 5 paragraf oku.</li><li>Buraya dönüp seçtiğin günün kaydını tamamla.</li></ol>
+      <div class="reading-selected-note ${targetIsPast ? "late" : ""}"><strong>${targetIsPast ? "Telafi günü:" : "Seçilen gün:"}</strong> ${escapeHTML(targetLabel.weekday)} ${escapeHTML(targetLabel.date)}${targetIsPast ? " • Bugün okursan kırmızı telafi kaydı oluşur." : ""}</div>
+      <div class="reading-mission-actions"><a class="button reading-launch" href="https://memet19-coder.github.io/okuma-takip-anlama-atolyesi/" target="_blank" rel="noopener noreferrer" data-action="visit-reading-workshop" data-module-id="${moduleId}" data-reading-date="${targetDateKey}">${targetIsPast ? "Telafi Okumasını Aç" : "Bugünkü Okumayı Aç"} <span>↗</span></a><button class="reading-confirmation ${completedTarget ? (targetEntry.late ? "late done" : "done") : ""}" type="button" data-action="complete-daily-reading" data-module-id="${moduleId}" data-reading-date="${targetDateKey}" ${completedTarget || !visitedTarget ? "disabled" : ""}><span class="reading-check">${completedTarget ? "✓" : "□"}</span><span><b>${completedTarget ? (targetEntry.late ? "Telafi kaydı tamamlandı" : "Bu gün tamamlandı") : visitedTarget ? `${targetIsPast ? "Telafiyi" : "5 paragrafı"} okudum` : "Önce Okuma Atölyesi’ni aç"}</b><small>${completedTarget ? `${formatDate(targetEntry.completedAt)} tarihinde kaydedildi.${targetEntry.late ? " Geç okuma olarak işaretlendi." : ""}` : visitedTarget ? "Okumanı bitirdiysen bu günün kaydını tamamla." : "Düğme, Okuma Atölyesi’ni açtıktan sonra etkinleşir."}</small></span></button></div>
     </div>
   </section>`;
 }
@@ -1886,6 +1904,7 @@ function getHistoricalStudentWeek(student, week, referenceDate = new Date()) {
   const todayKey = localDateKey(referenceDate);
   const elapsedDays = tracking.days.filter(day => day.key <= todayKey);
   const missedReadingDays = elapsedDays.filter(day => !day.reading);
+  const lateReadingDays = elapsedDays.filter(day => day.reading && day.late);
   const missedLoginDays = elapsedDays.filter(day => !day.login);
   const plan = getHistoricalPlan(student, week);
   const completedPlanItems = plan.items.filter(item => item.done);
@@ -1904,6 +1923,7 @@ function getHistoricalStudentWeek(student, week, referenceDate = new Date()) {
     tracking,
     elapsedDays,
     missedReadingDays,
+    lateReadingDays,
     missedLoginDays,
     plan,
     completedPlanItems,
@@ -1960,7 +1980,7 @@ function renderWeeklyHistoryPanel(classRecord, students) {
       return `<article class="history-student-card">
         <div class="history-student-name"><span>${escapeHTML(item.student.name.charAt(0).toLocaleUpperCase("tr-TR"))}</span><div><strong>${escapeHTML(item.student.name)}</strong><small>${loginCount}/${item.elapsedDays.length} gün giriş</small></div></div>
         <div class="history-report-cell"><small>${selectedWeek.module ? `${selectedWeek.weekNumber}. MODÜL` : "MODÜL"}</small><strong class="history-status ${moduleLabel[1]}">${moduleLabel[0]}</strong><p>${selectedWeek.module ? escapeHTML(selectedWeek.module.title) : "10 haftalık modül dönemi dışında"}</p></div>
-        <div class="history-report-cell"><small>GİRİŞ VE 5 PARAGRAF</small><strong>${loginCount} giriş • ${readCount} okuma</strong><p>${item.missedReadingDays.length ? `Okuma eksik: ${escapeHTML(formatDayList(item.missedReadingDays))}` : "Okuma günü kaçırılmadı."}${item.missedLoginDays.length ? ` • Giriş yok: ${escapeHTML(formatDayList(item.missedLoginDays))}` : ""}</p></div>
+        <div class="history-report-cell"><small>GİRİŞ VE 5 PARAGRAF</small><strong>${loginCount} giriş • ${readCount} okuma</strong><p>${item.missedReadingDays.length ? `Okuma eksik: ${escapeHTML(formatDayList(item.missedReadingDays))}` : "Okuma günü kaçırılmadı."}${item.lateReadingDays.length ? ` • Telafi: ${escapeHTML(formatDayList(item.lateReadingDays))}` : ""}${item.missedLoginDays.length ? ` • Giriş yok: ${escapeHTML(formatDayList(item.missedLoginDays))}` : ""}</p></div>
         <div class="history-report-cell"><small>HAFTALIK PLAN</small>${planAvailable ? `<strong>${item.completedPlanItems.length} / ${item.plan.items.length} görev</strong><p>${item.missedPlanItems.length ? `Tamamlanmayan: ${escapeHTML(item.missedPlanItems.map(planItem => `${planItem.day} • ${planItem.subject || planItem.topic}`).join(", "))}` : item.plan.items.length ? "Planlanan görevler tamamlandı." : "Bu hafta plan oluşturulmadı."}</p>` : `<strong>Arşiv kaydı yok</strong><p>Bu tarihte plan geçmişi henüz saklanmıyordu.</p>`}</div>
         <button class="history-inspect" type="button" data-action="view-student" data-student-id="${item.student.id}">İncele →</button>
       </article>`;
@@ -1989,7 +2009,7 @@ function buildWeeklyClassReport(classId, weekKey) {
     const planText = item.plan.source === "unavailable"
       ? "Arşiv kaydı yok"
       : `${item.completedPlanItems.length}/${item.plan.items.length} görev${item.missedPlanItems.length ? ` • Tamamlanmayan: ${item.missedPlanItems.map(planItem => `${planItem.day} ${planItem.subject || planItem.topic}`).join(", ")}` : ""}`;
-    return `${student.name}\n- Modül: ${moduleText}\n- Giriş: ${loginCount}/${item.elapsedDays.length} gün${item.missedLoginDays.length ? ` • Eksik: ${formatDayList(item.missedLoginDays)}` : ""}\n- 5 paragraf: ${readCount}/${item.elapsedDays.length} gün${item.missedReadingDays.length ? ` • Eksik: ${formatDayList(item.missedReadingDays)}` : ""}\n- Plan: ${planText}`;
+    return `${student.name}\n- Modül: ${moduleText}\n- Giriş: ${loginCount}/${item.elapsedDays.length} gün${item.missedLoginDays.length ? ` • Eksik: ${formatDayList(item.missedLoginDays)}` : ""}\n- 5 paragraf: ${readCount}/${item.elapsedDays.length} gün${item.missedReadingDays.length ? ` • Eksik: ${formatDayList(item.missedReadingDays)}` : ""}${item.lateReadingDays.length ? ` • Telafi: ${formatDayList(item.lateReadingDays)}` : ""}\n- Plan: ${planText}`;
   });
   return `VERİMLİ DERS ÇALIŞMA AKADEMİSİ\nHAFTALIK SINIF RAPORU\n\nSınıf: ${classRecord.name}\nDönem: ${week.weekNumber}. Hafta • ${formatWeekRange(week)}\nModül: ${week.module ? `${week.module.id}. ${week.module.title}` : "Modül görevi yok"}\n\n${lines.join("\n\n")}`;
 }
@@ -2119,7 +2139,7 @@ function renderTeacherStudentDetail(studentId) {
         const labels = formatReadingDay(day.date);
         const isToday = day.key === weeklyTracking.todayKey;
         const isFuture = day.key > weeklyTracking.todayKey;
-        return `<article class="teacher-day-card ${isToday ? "today" : ""} ${day.reading ? "done" : ""}"><div class="teacher-day-heading"><span>${escapeHTML(labels.weekday)}</span><strong>${escapeHTML(labels.date)}</strong>${isToday ? "<small>BUGÜN</small>" : ""}</div><div class="teacher-day-signals"><span class="${day.login ? "yes" : isFuture ? "waiting" : "no"}">${day.login ? "✓ Giriş yaptı" : isFuture ? "• Bekleniyor" : "— Giriş yapmadı"}</span><span class="${day.reading ? "yes" : isFuture ? "waiting" : "no"}">${day.reading ? "✓ 5 paragraf okudu" : isFuture ? "• Okuma bekleniyor" : "— Okuma yapmadı"}</span></div></article>`;
+        return `<article class="teacher-day-card ${isToday ? "today" : ""} ${day.reading ? (day.late ? "late" : "done") : ""}"><div class="teacher-day-heading"><span>${escapeHTML(labels.weekday)}</span><strong>${escapeHTML(labels.date)}</strong>${isToday ? "<small>BUGÜN</small>" : ""}</div><div class="teacher-day-signals"><span class="${day.login ? "yes" : isFuture ? "waiting" : "no"}">${day.login ? "✓ Giriş yaptı" : isFuture ? "• Bekleniyor" : "— Giriş yapmadı"}</span><span class="${day.reading ? (day.late ? "late" : "yes") : isFuture ? "waiting" : "no"}">${day.reading ? (day.late ? `↺ 5 paragraf telafi edildi${day.readingEntry?.completedAt ? ` (${formatDate(day.readingEntry.completedAt)})` : ""}` : "✓ 5 paragraf okudu") : isFuture ? "• Okuma bekleniyor" : "— Okuma yapmadı"}</span></div></article>`;
       }).join("")}</div></section>
       <section class="detail-section"><div class="detail-title"><div><span class="section-tag">MODÜLLER</span><h3>Beceri gelişimi</h3></div></div><div class="detail-module-grid">${MODULES.map(module => `<div class="detail-module ${completedIds.includes(module.id) ? "done" : answeredModules.some(([id]) => Number(id) === module.id) ? "progress" : ""}"><span>${completedIds.includes(module.id) ? "✓" : module.icon}</span><div><small>${module.id}. Hafta</small><strong>${module.title}</strong></div></div>`).join("")}</div></section>
       <section class="detail-section"><div class="detail-title"><div><span class="section-tag">ETKİLEŞİMLİ ATÖLYELER</span><h3>Karar, güven ve görev takibi</h3></div></div>${activityEntries.length ? `<div class="teacher-activity-list">${activityEntries.map(([id, record]) => {
@@ -2392,33 +2412,53 @@ function saveActivityReflection(moduleId) {
   showToast("Etkinlik düşüncen kaydedildi. ✨");
 }
 
-function handleReadingWorkshopVisit(moduleId) {
+function getReadingTargetDay(targetDateKey) {
   const tracking = getReadingWeek();
-  const existing = state.readingLog[tracking.todayKey] || {};
-  state.readingLog[tracking.todayKey] = {
-    ...existing,
-    moduleId: existing.completedAt ? existing.moduleId : moduleId,
-    weekKey: tracking.weekKey,
-    visitedAt: new Date().toISOString()
-  };
-  saveData(STORAGE_KEYS.readingLog, state.readingLog);
+  const target = tracking.days.find(day => day.key === targetDateKey) || tracking.days.find(day => day.key === tracking.todayKey);
+  return { tracking, target };
+}
+
+function selectReadingDay(moduleId, targetDateKey) {
+  const { tracking, target } = getReadingTargetDay(targetDateKey);
+  if (!target || target.key > tracking.todayKey) return;
+  readingTargetDateKey = target.key;
   const currentMission = document.querySelector(`#reading-mission-${moduleId}`);
   if (currentMission) currentMission.outerHTML = renderReadingMission(moduleId);
 }
 
-function handleDailyReadingCompletion(moduleId) {
-  const tracking = getReadingWeek();
-  const existing = state.readingLog[tracking.todayKey] || {};
+function handleReadingWorkshopVisit(moduleId, targetDateKey = getReadingWeek().todayKey) {
+  const { tracking, target } = getReadingTargetDay(targetDateKey);
+  if (!target || target.key > tracking.todayKey) return;
+  const existing = state.readingLog[target.key] || {};
+  state.readingLog[target.key] = {
+    ...existing,
+    moduleId: existing.completedAt ? existing.moduleId : moduleId,
+    weekKey: getReadingWeek(target.date).weekKey,
+    readingDate: target.key,
+    visitedAt: new Date().toISOString(),
+    visitedForDate: target.key
+  };
+  saveData(STORAGE_KEYS.readingLog, state.readingLog);
+  readingTargetDateKey = target.key;
+  const currentMission = document.querySelector(`#reading-mission-${moduleId}`);
+  if (currentMission) currentMission.outerHTML = renderReadingMission(moduleId);
+}
+
+function handleDailyReadingCompletion(moduleId, targetDateKey = getReadingWeek().todayKey) {
+  const { tracking, target } = getReadingTargetDay(targetDateKey);
+  if (!target || target.key > tracking.todayKey) return;
+  const existing = state.readingLog[target.key] || {};
   if (!existing.visitedAt) {
-    showToast("Önce Okuma Atölyesi’ni açıp bugünün 5 paragrafını okuyabilirsin.", "error");
+    showToast("Önce Okuma Atölyesi’ni açıp seçtiğin günün 5 paragrafını okuyabilirsin.", "error");
     return;
   }
   if (isReadingEntryCompleted(existing)) {
-    showToast("Bugünün okuma kaydı zaten tamamlandı. Yarın yeni gün açılacak. ✓");
+    showToast("Bu günün okuma kaydı zaten tamamlandı. ✓");
     return;
   }
   const completedAt = new Date().toISOString();
-  state.readingLog[tracking.todayKey] = { ...existing, moduleId, weekKey: tracking.weekKey, paragraphs: 5, completedAt };
+  const isLate = target.key !== tracking.todayKey;
+  state.readingLog[target.key] = { ...existing, moduleId, weekKey: getReadingWeek(target.date).weekKey, readingDate: target.key, paragraphs: 5, completedAt, completedOn: tracking.todayKey, late: isLate, lateAt: isLate ? completedAt : null };
   saveData(STORAGE_KEYS.readingLog, state.readingLog);
   const record = ensureActivityRecord(moduleId);
   record.readingCompleted = true;
@@ -2429,7 +2469,7 @@ function handleDailyReadingCompletion(moduleId) {
   if (currentMission) currentMission.outerHTML = renderReadingMission(moduleId);
   updateModuleProgressFromState(moduleId);
   const weeklyCount = getWeeklyTracking().readingCount;
-  showToast(`Bugünün 5 paragrafını tamamladın. Bu hafta ${weeklyCount}/7 gün! 📚`);
+  showToast(`${isLate ? "Kaçırdığın gün telafi edildi" : "Bugünün 5 paragrafı tamamlandı"}. Bu hafta ${weeklyCount}/7 gün! 📚`);
   if (state.page === "home") renderHome();
 }
 
@@ -2470,8 +2510,9 @@ document.addEventListener("click", event => {
   else if (action === "activity-confidence") handleActivityConfidence(Number(actionButton.dataset.moduleId), actionButton.dataset.stage, Number(actionButton.dataset.value));
   else if (action === "activity-day") handleActivityDay(Number(actionButton.dataset.moduleId), Number(actionButton.dataset.dayIndex));
   else if (action === "save-activity-reflection") saveActivityReflection(Number(actionButton.dataset.moduleId));
-  else if (action === "visit-reading-workshop") handleReadingWorkshopVisit(Number(actionButton.dataset.moduleId));
-  else if (action === "complete-daily-reading") handleDailyReadingCompletion(Number(actionButton.dataset.moduleId));
+  else if (action === "select-reading-day") selectReadingDay(Number(actionButton.dataset.moduleId), actionButton.dataset.readingDate);
+  else if (action === "visit-reading-workshop") handleReadingWorkshopVisit(Number(actionButton.dataset.moduleId), actionButton.dataset.readingDate);
+  else if (action === "complete-daily-reading") handleDailyReadingCompletion(Number(actionButton.dataset.moduleId), actionButton.dataset.readingDate);
   else if (action === "save-draft") {
     const form = document.querySelector("#module-form");
     if (saveModuleDraft(form)) {
