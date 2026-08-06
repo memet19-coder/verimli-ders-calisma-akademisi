@@ -1168,7 +1168,7 @@ body {
 .management-danger-zone.delete { margin-bottom: 26px; border-color: #efcbd4; background: var(--pink-soft); }
 .teacher-management-page { display: grid; gap: 18px; }
 .teacher-management-hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; padding: 28px 32px; border-radius: 26px; color: #fff; background: linear-gradient(125deg, #263b96, #5267e8); box-shadow: 0 18px 45px rgba(59,74,173,.18); }
-.teacher-management-hero .button.ghost { margin-bottom: 18px; color: #fff; border-color: rgba(255,255,255,.3); }
+.teacher-management-hero .button.ghost { margin-bottom: 18px; color: #fff; border-color: rgba(255,255,255,.48); background: rgba(255,255,255,.14); box-shadow: 0 6px 16px rgba(19,31,105,.12); }
 .teacher-management-hero .button.ghost:hover { color: var(--ink); background: #fff; }
 .teacher-management-hero .section-tag { display: block; color: #c8d0ff; }
 .teacher-management-hero h1 { margin: 4px 0 7px; font-size: clamp(28px, 4vw, 42px); letter-spacing: -.035em; }
