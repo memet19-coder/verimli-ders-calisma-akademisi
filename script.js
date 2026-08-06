@@ -683,6 +683,25 @@ function isLateReadingEntry(entry, readingDateKey) {
   return localDateKey(new Date(entry.completedAt)) > readingDateKey;
 }
 
+function getReadingEntryForDate(payload = state, dayKey) {
+  const readingLog = payload?.readingLog || {};
+  const direct = readingLog[dayKey];
+  if (direct) return direct;
+  const keyedEntry = Object.entries(readingLog).find(([key, entry]) => entry?.readingDate === dayKey || key === dayKey);
+  if (keyedEntry) return keyedEntry[1];
+  const legacyEntry = Object.entries(payload?.activities || {}).find(([, record]) => record?.readingCompletedAt && localDateKey(new Date(record.readingCompletedAt)) === dayKey);
+  if (legacyEntry) {
+    return {
+      moduleId: Number(legacyEntry[0]),
+      readingDate: dayKey,
+      paragraphs: 5,
+      completedAt: legacyEntry[1].readingCompletedAt,
+      legacy: true
+    };
+  }
+  return null;
+}
+
 function hasReadingForModule(moduleId, payload = state) {
   if (payload.activities?.[moduleId]?.readingCompleted) return true;
   return Object.values(payload.readingLog || {}).some(entry => isReadingEntryCompleted(entry) && Number(entry.moduleId) === Number(moduleId));
@@ -691,13 +710,12 @@ function hasReadingForModule(moduleId, payload = state) {
 function getWeeklyTracking(payload = state, referenceDate = new Date()) {
   const week = getReadingWeek(referenceDate);
   const attendance = payload.attendance || {};
-  const readingLog = payload.readingLog || {};
   const days = week.days.map(day => ({
     ...day,
     login: Boolean(attendance[day.key]),
-    reading: isReadingEntryCompleted(readingLog[day.key]),
-    late: isLateReadingEntry(readingLog[day.key], day.key),
-    readingEntry: readingLog[day.key] || null
+    reading: isReadingEntryCompleted(getReadingEntryForDate(payload, day.key)),
+    late: isLateReadingEntry(getReadingEntryForDate(payload, day.key), day.key),
+    readingEntry: getReadingEntryForDate(payload, day.key)
   }));
   return {
     ...week,
@@ -1253,7 +1271,7 @@ function renderHome() {
   const unlockedBadges = BADGES.filter(item => item[3](completedIds)).length;
   const academyScore = Math.round((overall * 0.7) + (planStats.percent * 0.3));
   const readingTracking = getWeeklyTracking();
-  const todayReading = state.readingLog[readingTracking.todayKey] || {};
+  const todayReading = getReadingEntryForDate(state, readingTracking.todayKey) || {};
   const readToday = isReadingEntryCompleted(todayReading);
   const recentActivity = Object.entries(state.completed)
     .filter(([, value]) => value?.completedAt)
@@ -1437,7 +1455,7 @@ function renderReadingMission(moduleId) {
   const validTarget = readingTargetDateKey && tracking.days.some(day => day.key === readingTargetDateKey && day.key <= tracking.todayKey);
   const targetDateKey = validTarget ? readingTargetDateKey : tracking.todayKey;
   const targetDay = tracking.days.find(day => day.key === targetDateKey) || tracking.days[0];
-  const targetEntry = state.readingLog[targetDateKey] || {};
+  const targetEntry = getReadingEntryForDate(state, targetDateKey) || {};
   const targetIsToday = targetDateKey === tracking.todayKey;
   const targetIsPast = targetDateKey < tracking.todayKey;
   const visitedTarget = Boolean(targetEntry.visitedAt);
@@ -2021,7 +2039,7 @@ function renderTeacherDashboard() {
   const visibleAlerts = visibleStudents.map(student => ({ student, alerts: getTeacherStudentAlerts(student) }));
   const todayKey = localDateKey();
   const loggedInToday = allProgress.filter(item => Boolean(item.payload?.attendance?.[todayKey])).length;
-  const readToday = allProgress.filter(item => isReadingEntryCompleted(item.payload?.readingLog?.[todayKey])).length;
+  const readToday = allProgress.filter(item => isReadingEntryCompleted(getReadingEntryForDate(item.payload || {}, todayKey))).length;
   const overdueModuleStudents = visibleAlerts.filter(item => item.alerts.overdueModules.length > 0).length;
   const pendingReadingStudents = visibleAlerts.filter(item => item.alerts.readingPendingToday).length;
   const averageModules = allProgress.length ? (allProgress.reduce((sum, item) => sum + Number(item.completed_count || 0), 0) / allProgress.length).toFixed(1) : "0";
@@ -2101,7 +2119,7 @@ function renderTeacherStudentTable(students) {
   return `<div class="student-table-wrap"><table class="student-table"><thead><tr><th>Öğrenci</th><th>Giriş kodu</th><th>Modül ilerlemesi</th><th>Plan</th><th>Bugün</th><th>Uyarı</th><th>Son çalışma</th><th></th></tr></thead><tbody>${students.map(student => {
     const progress = getStudentProgress(student);
     const loggedIn = Boolean(progress.payload?.attendance?.[todayKey]);
-    const read = isReadingEntryCompleted(progress.payload?.readingLog?.[todayKey]);
+    const read = isReadingEntryCompleted(getReadingEntryForDate(progress.payload || {}, todayKey));
     const alerts = getTeacherStudentAlerts(student);
     return `<tr class="${alerts.hasAlert ? "has-warning" : ""}" data-student-row data-search-name="${escapeHTML(student.name.toLocaleLowerCase("tr-TR"))}"><td><div class="student-name-cell"><span>${escapeHTML(student.name.charAt(0).toLocaleUpperCase("tr-TR"))}</span><div><strong>${escapeHTML(student.name)}</strong><small>${progress.last_activity ? "Aktif öğrenci" : "Henüz başlamadı"}</small></div></div></td><td><button class="code-chip" type="button" data-action="copy-student-code" data-code="${escapeHTML(student.code_hint)}">${escapeHTML(student.code_hint)} 📋</button></td><td><div class="table-progress"><div><i style="width:${Number(progress.completed_count || 0) * 10}%"></i></div><strong>${Number(progress.completed_count || 0)} / 10</strong></div></td><td><span class="percent-chip ${Number(progress.plan_percent || 0) >= 70 ? "good" : ""}">%${Number(progress.plan_percent || 0)}</span></td><td><div class="daily-status-stack"><span class="${loggedIn ? "yes" : "no"}">${loggedIn ? "✓ Giriş" : "— Giriş"}</span><span class="${read ? "yes" : "no"}">${read ? "✓ Okuma" : "— Okuma"}</span></div></td><td><div class="student-warning-stack">${alerts.overdueModules.length ? `<span class="module-warning">⚠ ${alerts.overdueModules.length} modül</span>` : ""}${alerts.missedReadingDays.length ? `<span class="reading-missed">📖 ${alerts.missedReadingDays.length} gün eksik</span>` : ""}${alerts.readingPendingToday ? `<span class="reading-pending">○ Okuma bekleniyor</span>` : `<span class="all-done">✓ Güncel</span>`}</div></td><td><span class="last-seen">${progress.last_activity ? formatRelativeDate(progress.last_activity) : "—"}</span></td><td><div class="row-actions"><button class="preview-student-button" type="button" data-action="preview-student" data-student-id="${student.id}" title="Öğrenci panelini yeni sekmede aç"><span>👁️</span> Görünüm</button><button class="button ghost small" type="button" data-action="view-student" data-student-id="${student.id}">İncele →</button><button class="manage-student-button" type="button" data-action="manage-student" data-student-id="${student.id}" aria-label="${escapeHTML(student.name)} için düzenleme seçeneklerini aç" title="Öğrenciyi yönet">•••</button></div></td></tr>`;
   }).join("")}</tbody></table></div>`;
@@ -2128,8 +2146,8 @@ function getStudentReportMetrics(student) {
   const progress = getStudentProgress(student);
   const payload = progress.payload || {};
   const weeks = getStudentReportWeeks(student);
-  const readingEntries = Object.entries(payload.readingLog || {}).filter(([, entry]) => isReadingEntryCompleted(entry));
-  const lateReadings = readingEntries.filter(([key, entry]) => isLateReadingEntry(entry, entry.readingDate || key));
+  const readingEntries = weeks.flatMap(({ summary }) => summary.tracking.days.filter(day => day.reading).map(day => [day.key, day.readingEntry]));
+  const lateReadings = readingEntries.filter(([key, entry]) => isLateReadingEntry(entry, key));
   const completedIds = Object.keys(payload.completed || {}).map(Number).filter(id => MODULES.some(module => module.id === id));
   const answeredCount = Object.values(payload.answers || {}).filter(record => Object.values(record?.values || {}).some(value => String(value || "").trim())).length;
   const activityCount = Object.values(payload.activities || {}).filter(record => Object.keys(record?.choices || {}).length > 0).length;
@@ -2190,7 +2208,7 @@ function openStudentPdfReport(studentId) {
     return `<tr><td><strong>${week.weekNumber}. Hafta</strong><small>${escapeHTML(formatWeekRange(week))}</small></td><td>${escapeHTML(module.title)}<small>${studentReportModuleStatus(summary)}</small></td><td>${paragraphText}<small>${summary.tracking.readingCount}/${summary.elapsedDays.length} gün${lateText}${missedText}</small></td><td>${summary.tracking.loginCount}/${summary.elapsedDays.length}<small>günlük giriş</small></td><td>${planText}<small>${answerSaved ? "Uygulama yanıtlandı" : "Uygulama yanıtı yok"}</small></td></tr>`;
   }).join("");
   const noRows = `<tr><td colspan="5" class="empty">Henüz haftalık kayıt oluşmadı.</td></tr>`;
-  const lateDates = Object.entries(payload.readingLog || {}).filter(([key, entry]) => isLateReadingEntry(entry, entry?.readingDate || key)).sort(([a], [b]) => a.localeCompare(b)).map(([key, entry]) => `${formatDate(entry.completedAt)} (${formatDate(key)})`).join(", ");
+  const lateDates = weeks.flatMap(({ summary }) => summary.lateReadingDays.map(day => `${formatDate(day.readingEntry?.completedAt)} (${formatDate(day.key)})`)).join(", ");
   const completedModules = metrics.completedIds.length ? metrics.completedIds.map(id => `${id}. ${MODULES.find(module => module.id === id)?.title || ""}`).join(" • ") : "Henüz tamamlanan modül yok.";
   const answerSections = MODULES.map(module => {
     const answer = payload.answers?.[module.id];
@@ -2210,6 +2228,11 @@ function openStudentPdfReport(studentId) {
   </style></head><body><div class="actions"><button onclick="window.print()">PDF olarak kaydet / Yazdır</button><button class="secondary" onclick="window.close()">Kapat</button></div><main class="report"><header class="report-head"><div class="brand">VERİMLİ DERS ÇALIŞMA AKADEMİSİ</div><h1>${escapeHTML(student.name)} • Çalışma Raporu</h1><p>Bugüne kadar yapılan çalışmaların haftalık özeti</p></header><div class="body"><div class="meta"><span><strong>Sınıf:</strong> ${escapeHTML(teacherStore.classes.find(item => item.id === student.class_id)?.name || "—")}</span><span><strong>Rapor tarihi:</strong> ${escapeHTML(reportDate)}</span><span><strong>İlk kayıt:</strong> ${student.created_at ? escapeHTML(formatDate(student.created_at)) : "—"}</span></div><section class="stats"><div class="stat"><span>Tamamlanan modül</span><strong>${metrics.completedIds.length} / 10</strong></div><div class="stat"><span>Okunan paragraf</span><strong>${metrics.totalParagraphs}</strong></div><div class="stat"><span>Okuma günü</span><strong>${metrics.readingCount}</strong></div><div class="stat"><span>Telafi okuması</span><strong>${metrics.lateReadingCount}</strong></div><div class="stat"><span>Günlük giriş</span><strong>${metrics.totalLogins}</strong></div><div class="stat"><span>Plan görevi</span><strong>${metrics.planTotals.done} / ${metrics.planTotals.planned}</strong></div></section><section class="section"><h2>Modül ve hafta dökümü</h2><p>Her hafta öğrencinin modül, giriş, paragraf okuma, telafi ve plan durumu birlikte gösterilir.</p><div class="table-wrap"><table><thead><tr><th>Hafta</th><th>Modül</th><th>Paragraf okuması</th><th>Giriş</th><th>Plan / uygulama</th></tr></thead><tbody>${moduleRows || noRows}</tbody></table></div></section><section class="section"><h2>Tamamlanan modüller</h2><p class="pill">${escapeHTML(completedModules)}</p></section>${answerSections ? `<section class="section"><h2>Modül cevapları ve uygulamalar</h2>${answerSections}</section>` : ""}${planSections ? `<section class="section"><h2>Haftalık plan görevleri</h2><ul class="plan-list">${planSections}</ul></section>` : ""}${lateDates ? `<section class="section"><h2>Telafi edilen okumalar</h2><p class="late-list">${escapeHTML(lateDates)}<br><small>Parantez içindeki tarih, okumanın ait olduğu gündür.</small></p></section>` : ""}<section class="section"><h2>Genel not</h2><p>${metrics.completedIds.length >= 7 ? "Düzenli ilerliyor. Bu alışkanlığı korumaya devam edebilir." : metrics.readingCount >= 10 ? "Okuma alışkanlığı güçleniyor. Modül uygulamalarını da düzenli tamamlaması faydalı olur." : "Küçük ve düzenli adımlarla ilerlemesi desteklenebilir."}</p></section><div class="footer">Bu rapor Verimli Ders Çalışma Akademisi kayıtlarından otomatik olarak oluşturulmuştur.</div></div></main><script>setTimeout(function(){window.focus();window.print()},450)</script></body></html>`);
   reportWindow.document.close();
   const reportDoc = reportWindow.document;
+  const reportFooter = reportDoc.querySelector(".footer");
+  if (reportFooter) {
+    reportFooter.textContent = "Bu rapor Verimli Ders Çalışma Akademisi kayıtlarından otomatik olarak oluşturulmuştur.";
+    reportFooter.setAttribute("aria-label", "Rapor kaynağı");
+  }
   const reportSections = [...reportDoc.querySelectorAll(".section")];
   reportSections.find(section => section.querySelector("h2")?.textContent.trim() === "Genel not")?.remove();
   reportSections.find(section => section.querySelector("h2")?.textContent.trim() === "Tamamlanan modüller")?.remove();
