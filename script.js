@@ -2036,12 +2036,9 @@ function renderTeacherDashboard() {
   const activeClass = teacherStore.classes.find(item => item.id === teacherStore.activeClassId) || null;
   const visibleStudents = activeClass ? teacherStore.students.filter(item => item.class_id === activeClass.id) : [];
   const allProgress = teacherStore.students.map(getStudentProgress);
-  const visibleAlerts = visibleStudents.map(student => ({ student, alerts: getTeacherStudentAlerts(student) }));
   const todayKey = localDateKey();
   const loggedInToday = allProgress.filter(item => Boolean(item.payload?.attendance?.[todayKey])).length;
   const readToday = allProgress.filter(item => isReadingEntryCompleted(getReadingEntryForDate(item.payload || {}, todayKey))).length;
-  const overdueModuleStudents = visibleAlerts.filter(item => item.alerts.overdueModules.length > 0).length;
-  const pendingReadingStudents = visibleAlerts.filter(item => item.alerts.readingPendingToday).length;
   const averageModules = allProgress.length ? (allProgress.reduce((sum, item) => sum + Number(item.completed_count || 0), 0) / allProgress.length).toFixed(1) : "0";
   const averagePlan = allProgress.length ? Math.round(allProgress.reduce((sum, item) => sum + Number(item.plan_percent || 0), 0) / allProgress.length) : 0;
 
@@ -2057,7 +2054,6 @@ function renderTeacherDashboard() {
       ${teacherStat("🗓️", "Plan ortalaması", `%${averagePlan}`, "Haftalık tamamlama")}
     </div>
 
-    ${activeClass ? renderTeacherAlertCenter(visibleAlerts, overdueModuleStudents, pendingReadingStudents) : ""}
     ${activeClass ? renderWeeklyHistoryPanel(activeClass, visibleStudents) : ""}
 
     <div class="teacher-dashboard-grid">
