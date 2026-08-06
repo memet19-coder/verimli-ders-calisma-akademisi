@@ -26,6 +26,7 @@ let studentPreviewMode = false;
 let previewStudentRecord = null;
 let readingTargetDateKey = null;
 let teacherStore = { classes: [], students: [], activeClassId: null, selectedStudentId: null, reportWeekKey: null };
+let teacherPanelView = "dashboard";
 
 const STORAGE_KEYS = {
   settings: "vdca_settings",
@@ -39,6 +40,7 @@ const STORAGE_KEYS = {
   activities: "vdca_module_activities",
   attendance: "vdca_daily_attendance",
   readingLog: "vdca_daily_reading_log",
+  modules: "vdca_module_catalog",
   cloudSession: "vdca_cloud_session"
 };
 
@@ -504,6 +506,109 @@ const BADGES = [
   ["10'da 10", "Tüm modülleri tamamladığında açılır.", "⭐", completed => completed.length === 10]
 ];
 
+function moduleFieldKey(label, index) {
+  const key = String(label || `alan-${index + 1}`)
+    .toLocaleLowerCase("tr-TR")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/ı/g, "i")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 36);
+  return key || `alan-${index + 1}`;
+}
+
+function normalizeManagedModule(raw, index = 0, fallback = {}) {
+  const source = raw && typeof raw === "object" ? raw : {};
+  const fallbackFields = Array.isArray(fallback.fields) ? fallback.fields : [];
+  const fields = Array.isArray(source.fields) && source.fields.length
+    ? source.fields
+    : fallbackFields;
+  return {
+    ...fallback,
+    ...source,
+    id: Number(source.id || fallback.id || index + 1),
+    icon: String(source.icon || fallback.icon || "📘").slice(0, 4),
+    title: String(source.title || fallback.title || `Yeni Modül ${index + 1}`).trim(),
+    short: String(source.short || fallback.short || "Bu hafta yeni bir çalışma becerisi keşfet.").trim(),
+    description: String(source.description || fallback.description || "Bu becerinin neden önemli olduğunu keşfet.").trim(),
+    goal: String(source.goal || fallback.goal || "Bu modülün sonunda yeni bir çalışma adımı kazanacaksın.").trim(),
+    story: String(source.story || fallback.story || source.description || fallback.description || "").trim(),
+    task: String(source.task || fallback.task || "Bu beceriyi bugün küçük bir adımla uygula.").trim(),
+    lesson: Array.isArray(source.lesson) && source.lesson.length ? source.lesson : (Array.isArray(fallback.lesson) && fallback.lesson.length ? fallback.lesson : [["💡", "Bir adım seç", "Bu beceriyi küçük bir denemeyle uygulamayı dene."], ["📝", "Kendi cümlenle yaz", "Ne fark ettiğini kısa bir notla kaydet."], ["🌱", "Tekrar et", "İşe yarayan adımı başka bir gün yeniden kullan."]]),
+    fields: fields.map((field, fieldIndex) => {
+      const item = Array.isArray(field) ? field : [];
+      const label = String(item[1] || item[0] || `Kendi cevabım ${fieldIndex + 1}`).trim();
+      return [
+        String(item[0] || moduleFieldKey(label, fieldIndex)),
+        label,
+        item[2] === "textarea" || item[2] === "select" ? item[2] : "text",
+        String(item[3] || "Kısa bir cevap yaz."),
+        Array.isArray(item[4]) ? item[4].map(String) : undefined
+      ].filter((value, valueIndex) => valueIndex < 4 || value !== undefined);
+    }),
+    checks: (Array.isArray(source.checks) && source.checks.length ? source.checks : (fallback.checks || ["Görevi tamamladım."])).map(item => String(item).trim()).filter(Boolean),
+    active: source.active !== false,
+    updatedAt: source.updatedAt || fallback.updatedAt || null
+  };
+}
+
+function ensureModuleRuntimeData(module) {
+  if (!module || !module.id) return;
+  if (!MODULE_ANECDOTES[module.id]) {
+    MODULE_ANECDOTES[module.id] = {
+      title: "Bu becerinin günlük hayattaki karşılığı",
+      paragraphs: [module.story || module.description, "Bu modülü kendi deneyimlerinle ilişkilendirdiğinde öğrendiklerin daha anlamlı olur.", "Küçük bir deneme yapıp sonucunu gözlemle; gelişim tek seferlik değil, tekrar eden adımlarla oluşur."],
+      takeaway: module.goal || "Küçük ve uygulanabilir bir adım seçerek başlayabilirsin."
+    };
+  }
+  if (!MODULE_EXTRAS[module.id]) {
+    MODULE_EXTRAS[module.id] = {
+      duration: "10–15 dk.",
+      warmup: "Bu beceriyi kullanırken seni en çok zorlayan şey ne olabilir?",
+      steps: ["Kısa bir örnek düşün.", "Kendi yöntemini seç.", "Bugün küçük bir deneme yap.", "Sonucunu bir cümleyle değerlendir."],
+      powerTip: "Küçük bir adımı seçip bugün denemek, uzun bir plan yapıp başlamamaktan daha etkilidir.",
+      commonMistake: "Her şeyi aynı anda değiştirmeye çalışmak. Önce tek bir davranış seçip onu gözlemle.",
+      quiz: { question: "Bu beceriyi geliştirmenin iyi bir başlangıcı hangisidir?", options: ["Hiç denemeden beklemek", "Küçük bir adım seçip uygulamak", "Bütün haftayı tek günde tamamlamak"], answer: 1, explanation: "Küçük ve uygulanabilir bir adım, yeni bir alışkanlığın başlamasını kolaylaştırır." }
+    };
+  }
+  if (!ACTIVITY_LABS[module.id]) {
+    ACTIVITY_LABS[module.id] = {
+      icon: module.icon || "🧠",
+      title: `${module.title} karar atölyesi`,
+      instruction: "Her durumda sana en uygun seçeneği düşün.",
+      categories: ["Uygun", "Geliştir"],
+      items: [["Bu beceriyi küçük bir adımla denemek", "Uygun", "Küçük bir deneme başlamak için iyi bir yoldur."], ["Her şeyi bir anda değiştirmek", "Geliştir", "Bir davranışı seçip adım adım ilerlemek daha sürdürülebilirdir."], ["Sonucu kısa bir notla değerlendirmek", "Uygun", "Ne öğrendiğini fark etmek sonraki adımı güçlendirir."]],
+      mission: "Bu hafta bu beceriyi en az bir gün gerçek hayatında dene."
+    };
+  }
+}
+
+function hydrateManagedModuleCatalog() {
+  const stored = loadData(STORAGE_KEYS.modules, null);
+  if (Array.isArray(stored) && stored.length) {
+    const defaults = new Map(MODULES.map(module => [module.id, module]));
+    const restored = stored.map((item, index) => normalizeManagedModule(item, index, defaults.get(Number(item?.id)) || {}));
+    MODULES.splice(0, MODULES.length, ...restored);
+  }
+  MODULES.forEach(ensureModuleRuntimeData);
+}
+
+function saveManagedModuleCatalog() {
+  const clean = MODULES.map(module => normalizeManagedModule(module, module.id - 1));
+  localStorage.setItem(STORAGE_KEYS.modules, JSON.stringify(clean));
+}
+
+function getActiveModules() {
+  return MODULES.filter(module => module.active !== false);
+}
+
+function getModuleById(moduleId) {
+  return MODULES.find(module => module.id === Number(moduleId)) || null;
+}
+
+hydrateManagedModuleCatalog();
+
 const state = {
   page: "home",
   activeModule: null,
@@ -600,11 +705,13 @@ function showToast(message, type = "success") {
 }
 
 function getCompletedIds() {
-  return Object.keys(state.completed).map(Number).filter(id => state.completed[id]);
+  const activeIds = new Set(getActiveModules().map(module => module.id));
+  return Object.keys(state.completed).map(Number).filter(id => state.completed[id] && activeIds.has(id));
 }
 
 function getNextModule() {
-  return MODULES.find(module => !state.completed[module.id]) || MODULES[MODULES.length - 1];
+  const modules = getActiveModules();
+  return modules.find(module => !state.completed[module.id]) || modules[modules.length - 1] || null;
 }
 
 function getLastCompletedModule() {
@@ -766,9 +873,10 @@ function getStudentCourseWeekStatus(student, referenceDate = new Date()) {
   const joinedWeekStart = getReadingWeek(joinedAt).start;
   const currentWeekStart = getReadingWeek(referenceDate).start;
   const elapsedWeeks = Math.max(0, Math.floor((currentWeekStart.getTime() - joinedWeekStart.getTime()) / (7 * 86400000)));
-  const expectedModuleCount = Math.min(MODULES.length, elapsedWeeks);
+  const activeModules = getActiveModules();
+  const expectedModuleCount = Math.min(activeModules.length, elapsedWeeks);
   const completedIds = new Set(Object.keys(payload.completed || {}).map(Number));
-  const overdueModules = MODULES.slice(0, expectedModuleCount).filter(module => !completedIds.has(module.id));
+  const overdueModules = activeModules.slice(0, expectedModuleCount).filter(module => !completedIds.has(module.id));
   return { elapsedWeeks, expectedModuleCount, overdueModules };
 }
 
@@ -1261,11 +1369,12 @@ function renderCurrentPage() {
 }
 
 function renderHome() {
+  const activeModules = getActiveModules();
   const completedIds = getCompletedIds();
   const nextModule = getNextModule();
   const lastCompleted = getLastCompletedModule();
   const planStats = getPlanStats();
-  const overall = completedIds.length * 10;
+  const overall = activeModules.length ? Math.round((completedIds.length / activeModules.length) * 100) : 0;
   const tip = TEACHER_TIPS[new Date().getDate() % TEACHER_TIPS.length];
   const name = state.settings.studentName.trim();
   const unlockedBadges = BADGES.filter(item => item[3](completedIds)).length;
@@ -1287,7 +1396,7 @@ function renderHome() {
         <h2>Daha çok değil,<br><em>daha akıllı</em> çalış.</h2>
         <p>Her hafta bir çalışma becerisi kazan, öğrendiğini hemen uygula ve gelişimini somut olarak gör. Küçük adımlar zamanla güçlü bir çalışma düzenine dönüşür.</p>
         <div class="hero-actions">
-          <button class="button hero-button" type="button" data-action="open-module" data-module-id="${nextModule.id}">${completedIds.length ? "Kaldığın Yerden Devam Et" : "Modüllere Başla"} <span>→</span></button>
+          <button class="button hero-button" type="button" data-action="open-module" data-module-id="${nextModule?.id || ""}" ${nextModule ? "" : "disabled"}>${completedIds.length ? "Kaldığın Yerden Devam Et" : "Modüllere Başla"} <span>→</span></button>
           <button class="button hero-ghost" type="button" data-page="plan">Haftalık Planım</button>
         </div>
         <div class="hero-trust"><span>✓ Cihazında güvenle saklanır</span><span>✓ Kendi hızında ilerlersin</span></div>
@@ -1304,16 +1413,16 @@ function renderHome() {
     <section class="home-reading-card ${readToday ? "done" : ""}">
       <div class="home-reading-icon">${readToday ? "✓" : "5"}<small>PARAGRAF</small></div>
       <div class="home-reading-copy"><span class="section-tag">BUGÜNÜN OKUMA GÖREVİ</span><h3>${readToday ? "Bugünkü okuman tamamlandı!" : "Bugün 5 paragraf okumaya hazır mısın?"}</h3><p>Perşembeden Çarşambaya her gün küçük bir okuma adımı. Bu haftaki durumun: <strong>${readingTracking.readingCount}/7 gün</strong>.</p><div class="home-reading-days">${readingTracking.days.map(day => `<span class="${day.reading ? "done" : day.key === readingTracking.todayKey ? "today" : ""}" title="${escapeHTML(formatReadingDay(day.date).weekday)}">${day.reading ? "✓" : formatReadingDay(day.date).weekday.slice(0, 1)}</span>`).join("")}</div></div>
-      <div class="home-reading-actions"><a class="button reading-launch" href="https://memet19-coder.github.io/okuma-takip-anlama-atolyesi/" target="_blank" rel="noopener noreferrer" data-action="visit-reading-workshop" data-module-id="${nextModule.id}">${readToday ? "Yeniden Oku" : "Bugünkü Okumayı Aç"} <span>↗</span></a><button class="button ${readToday ? "secondary" : "primary"}" type="button" data-action="complete-daily-reading" data-module-id="${nextModule.id}" ${readToday ? "disabled" : ""}>${readToday ? "Bugün Tamamlandı ✓" : "5 Paragrafı Okudum"}</button></div>
+      <div class="home-reading-actions"><a class="button reading-launch" href="https://memet19-coder.github.io/okuma-takip-anlama-atolyesi/" target="_blank" rel="noopener noreferrer" data-action="visit-reading-workshop" data-module-id="${nextModule?.id || ""}">${readToday ? "Yeniden Oku" : "Bugünkü Okumayı Aç"} <span>↗</span></a><button class="button ${readToday ? "secondary" : "primary"}" type="button" data-action="complete-daily-reading" data-module-id="${nextModule?.id || ""}" ${readToday || !nextModule ? "disabled" : ""}>${readToday ? "Bugün Tamamlandı ✓" : "5 Paragrafı Okudum"}</button></div>
     </section>
 
     <div class="stats-grid">
-      ${statCard("✅", "Tamamlanan modül", `${completedIds.length} / 10`, completedIds.length ? "Harika, ilerliyorsun!" : "İlk adımını bekliyor.")}
-      ${statCard("📌", "Bu haftaki modül", `${nextModule.id}. Hafta`, nextModule.title)}
+      ${statCard("✅", "Tamamlanan modül", `${completedIds.length} / ${activeModules.length}`, completedIds.length ? "Harika, ilerliyorsun!" : "İlk adımını bekliyor.")}
+      ${statCard("📌", "Bu haftaki modül", nextModule ? `${nextModule.id}. Hafta` : "Tüm modüller tamamlandı", nextModule?.title || "Yeni bir modül eklenebilir.")}
       ${statCard("📝", "Son tamamlanan görev", lastCompleted ? lastCompleted.title : "Henüz yok", lastCompleted ? formatDate(state.completed[lastCompleted.id].completedAt) : "İlk görevini tamamlayınca burada görünür.", true)}
       ${statCard("⏱️", "Günlük çalışma hedefi", `${Number(state.settings.dailyGoal) || 30} dakika`, "Küçük ve düzenli adımlar.")}
       ${statCard("💡", "Öğretmen tavsiyesi", tip, "Bugünün küçük hatırlatması.", true)}
-      ${statCard("📈", "Genel ilerleme", `%${overall}`, overall === 100 ? "10'da 10! Muhteşem." : "Her modül %10 kazandırır.")}
+      ${statCard("📈", "Genel ilerleme", `%${overall}`, overall === 100 ? "Tüm aktif modüller tamamlandı!" : "Her tamamlanan modül ilerlemeni artırır.")}
     </div>
 
     <section class="academy-pulse">
@@ -1332,7 +1441,7 @@ function renderHome() {
         <div class="progress-track" aria-label="Genel ilerleme yüzde ${overall}"><div class="progress-fill" style="width:${overall}%"></div></div>
         <div class="next-module">
           <div class="next-module-icon">${nextModule.icon}</div>
-          <div class="next-module-copy"><small>${completedIds.length === 10 ? "Tekrar etmek ister misin?" : `${MODULE_EXTRAS[nextModule.id].duration} • Uygulamalı modül`}</small><strong>${nextModule.id}. Hafta: ${nextModule.title}</strong></div>
+          <div class="next-module-copy"><small>${completedIds.length === activeModules.length ? "Tekrar etmek ister misin?" : `${MODULE_EXTRAS[nextModule.id].duration} • Uygulamalı modül`}</small><strong>${nextModule.id}. Hafta: ${nextModule.title}</strong></div>
           <button class="button primary small" type="button" data-action="open-module" data-module-id="${nextModule.id}">Aç</button>
         </div>
       </section>
@@ -1348,9 +1457,9 @@ function renderHome() {
     </div>
 
     <section class="skill-map-section">
-      <div class="section-heading"><div><span class="section-tag">BECERİ HARİTASI</span><h2>10 haftalık gelişim rotan</h2><p>Tamamlanan beceriler renklenir. Sıradaki adımın halkayla gösterilir.</p></div><button class="button secondary small" type="button" data-page="modules">Tüm modülleri gör</button></div>
+      <div class="section-heading"><div><span class="section-tag">BECERİ HARİTASI</span><h2>${activeModules.length} haftalık gelişim rotan</h2><p>Tamamlanan beceriler renklenir. Sıradaki adımın halkayla gösterilir.</p></div><button class="button secondary small" type="button" data-page="modules">Tüm modülleri gör</button></div>
       <div class="skill-map">
-        ${MODULES.map(module => `<button type="button" class="skill-node ${state.completed[module.id] ? "completed" : module.id === nextModule.id ? "current" : ""}" data-action="open-module" data-module-id="${module.id}"><span>${state.completed[module.id] ? "✓" : module.icon}</span><small>${module.id}. Hafta</small><b>${module.title.replace("?", "")}</b></button>`).join("")}
+        ${getActiveModules().map(module => `<button type="button" class="skill-node ${state.completed[module.id] ? "completed" : module.id === nextModule?.id ? "current" : ""}" data-action="open-module" data-module-id="${module.id}"><span>${state.completed[module.id] ? "✓" : module.icon}</span><small>${module.id}. Hafta</small><b>${module.title.replace("?", "")}</b></button>`).join("")}
       </div>
     </section>
 
@@ -1368,14 +1477,15 @@ function statCard(icon, label, value, note, textValue = false) {
 }
 
 function renderModules() {
+  const activeModules = getActiveModules();
   const completed = getCompletedIds().length;
   main.innerHTML = `
-    <section class="page-intro"><div><h2>10 haftada 10 güçlü beceri</h2><p>Modülleri sırayla ilerletebilir ya da bugün en çok ihtiyacın olan konuyu seçebilirsin. Her görev küçük bir adım olarak tasarlandı.</p></div><div class="intro-icon" aria-hidden="true">📚</div></section>
-    <div class="progress-line"><span>Akademi ilerlemen</span><strong>${completed} / 10 modül</strong></div>
-    <div class="progress-track" aria-label="Modüllerin yüzde ${completed * 10} kadarı tamamlandı"><div class="progress-fill" style="width:${completed * 10}%"></div></div>
+    <section class="page-intro"><div><h2>${activeModules.length} güçlü beceriyle ilerle</h2><p>Modülleri sırayla ilerletebilir ya da bugün en çok ihtiyacın olan konuyu seçebilirsin. Her görev küçük bir adım olarak tasarlandı.</p></div><div class="intro-icon" aria-hidden="true">📚</div></section>
+    <div class="progress-line"><span>Akademi ilerlemen</span><strong>${completed} / ${activeModules.length} modül</strong></div>
+    <div class="progress-track" aria-label="Modüllerin yüzde ${activeModules.length ? Math.round((completed / activeModules.length) * 100) : 0} kadarı tamamlandı"><div class="progress-fill" style="width:${activeModules.length ? Math.round((completed / activeModules.length) * 100) : 0}%"></div></div>
     <div class="section-heading"><div><h2>Tüm modüller</h2><p>Bir kart seç ve kendi hızında ilerle.</p></div></div>
     <div class="module-grid">
-      ${MODULES.map(module => {
+      ${getActiveModules().map(module => {
         const status = getModuleStatus(module.id);
         return `<article class="module-card module-accent-${((module.id - 1) % 5) + 1} ${status.className === "completed" ? "completed" : ""}">
           <div class="module-card-top"><span class="module-number">${status.className === "completed" ? "✓" : module.id}</span><span class="status-pill ${status.className}">${status.label}</span></div>
@@ -1389,8 +1499,8 @@ function renderModules() {
 }
 
 function renderModuleDetail(moduleId) {
-  const module = MODULES.find(item => item.id === Number(moduleId));
-  if (!module) return navigate("modules");
+  const module = getModuleById(moduleId);
+  if (!module || module.active === false) return navigate("modules");
   const extra = MODULE_EXTRAS[module.id];
   const anecdote = MODULE_ANECDOTES[module.id];
   const answerRecord = state.answers[module.id]?.values || {};
@@ -1444,8 +1554,8 @@ function renderModuleDetail(moduleId) {
       <div class="form-actions"><button class="button ghost" type="button" data-action="save-draft">Taslağı Kaydet</button><button class="button primary" type="submit">${state.completed[module.id] ? "Cevaplarımı Güncelle" : "Modülü Tamamla"} ✨</button></div>
     </form>
     <nav class="module-footer-nav" aria-label="Modüller arası geçiş">
-      ${module.id > 1 ? `<button class="module-jump previous" type="button" data-action="open-module" data-module-id="${module.id - 1}"><span>← Önceki modül</span><strong>${MODULES[module.id - 2].title}</strong></button>` : `<div></div>`}
-      ${module.id < 10 ? `<button class="module-jump next" type="button" data-action="open-module" data-module-id="${module.id + 1}"><span>Sonraki modül →</span><strong>${MODULES[module.id].title}</strong></button>` : `<button class="module-jump next" type="button" data-page="badges"><span>Akademi sonucu →</span><strong>Rozetlerimi Gör</strong></button>`}
+      ${(() => { const modules = getActiveModules(); const index = modules.findIndex(item => item.id === module.id); const previous = modules[index - 1]; return previous ? `<button class="module-jump previous" type="button" data-action="open-module" data-module-id="${previous.id}"><span>← Önceki modül</span><strong>${previous.title}</strong></button>` : "<div></div>"; })()}
+      ${(() => { const modules = getActiveModules(); const index = modules.findIndex(item => item.id === module.id); const next = modules[index + 1]; return next ? `<button class="module-jump next" type="button" data-action="open-module" data-module-id="${next.id}"><span>Sonraki modül →</span><strong>${next.title}</strong></button>` : `<button class="module-jump next" type="button" data-page="badges"><span>Akademi sonucu →</span><strong>Rozetlerimi Gör</strong></button>`; })()}
     </nav>
   </article>`;
 }
@@ -1733,16 +1843,18 @@ function getLastAnswerText() {
 }
 
 function buildReportText() {
+  const activeModuleCount = getActiveModules().length;
   const name = state.settings.studentName.trim() || "Belirtilmedi";
   const completed = getCompletedIds();
   const plan = getPlanStats();
   const lastCompleted = getLastCompletedModule();
   const lastAnswer = getLastAnswerText();
   const completedNames = completed.length ? completed.map(id => `${id}. ${MODULES.find(item => item.id === id).title}`).join(", ") : "Henüz tamamlanan modül yok.";
-  return `VERİMLİ DERS ÇALIŞMA AKADEMİSİ\nGELİŞİM RAPORU\n\nÖğrenci: ${name}\nTarih: ${new Intl.DateTimeFormat("tr-TR").format(new Date())}\nTamamlanan modül: ${completed.length} / 10\nTamamlanan haftalık görev: ${plan.completed} / ${plan.planned}\nHaftalık plan ilerlemesi: %${plan.percent}\nEn son yapılan uygulama: ${lastCompleted ? `${lastCompleted.id}. ${lastCompleted.title}` : "Henüz yok"}\n\nTamamlanan modüller:\n${completedNames}\n\nSon cevap (${lastAnswer.title}):\n${lastAnswer.text}\n\nÖğrenciye öneri:\n${getAutomaticSuggestion()}`;
+  return `VERİMLİ DERS ÇALIŞMA AKADEMİSİ\nGELİŞİM RAPORU\n\nÖğrenci: ${name}\nTarih: ${new Intl.DateTimeFormat("tr-TR").format(new Date())}\nTamamlanan modül: ${completed.length} / ${activeModuleCount}\nTamamlanan haftalık görev: ${plan.completed} / ${plan.planned}\nHaftalık plan ilerlemesi: %${plan.percent}\nEn son yapılan uygulama: ${lastCompleted ? `${lastCompleted.id}. ${lastCompleted.title}` : "Henüz yok"}\n\nTamamlanan modüller:\n${completedNames}\n\nSon cevap (${lastAnswer.title}):\n${lastAnswer.text}\n\nÖğrenciye öneri:\n${getAutomaticSuggestion()}`;
 }
 
 function renderReport() {
+  const activeModuleCount = getActiveModules().length;
   const completed = getCompletedIds();
   const plan = getPlanStats();
   const lastCompleted = getLastCompletedModule();
@@ -1754,7 +1866,7 @@ function renderReport() {
       <header class="report-header"><p>VERİMLİ DERS ÇALIŞMA AKADEMİSİ</p><h2>${escapeHTML(name)} • Gelişim Raporu</h2></header>
       <div class="report-body">
         ${!state.settings.studentName.trim() ? `<div class="empty-state" style="margin-bottom:20px"><span>👤</span>Raporunda adının görünmesi için <button class="button secondary small" type="button" data-page="settings">Ayarlar'dan adını ekle</button></div>` : ""}
-        <div class="report-stats"><div class="report-stat"><span>Tamamlanan modül</span><strong>${completed.length} / 10</strong></div><div class="report-stat"><span>Haftalık görev</span><strong>${plan.completed} / ${plan.planned}</strong></div><div class="report-stat"><span>Plan ilerlemesi</span><strong>%${plan.percent}</strong></div></div>
+        <div class="report-stats"><div class="report-stat"><span>Tamamlanan modül</span><strong>${completed.length} / ${activeModuleCount}</strong></div><div class="report-stat"><span>Haftalık görev</span><strong>${plan.completed} / ${plan.planned}</strong></div><div class="report-stat"><span>Plan ilerlemesi</span><strong>%${plan.percent}</strong></div></div>
         <div class="report-row"><span>EN SON YAPILAN UYGULAMA</span><p>${lastCompleted ? `${lastCompleted.icon} ${lastCompleted.id}. ${lastCompleted.title} • ${formatDate(state.completed[lastCompleted.id].completedAt)}` : "Henüz bir modül tamamlanmadı."}</p></div>
         <div class="report-row"><span>ÖĞRENCİNİN SON CEVABI • ${escapeHTML(lastAnswer.title)}</span><p>${escapeHTML(lastAnswer.text)}</p></div>
         <div class="recommendation"><strong>💡 Sana özel küçük öneri</strong><p>${getAutomaticSuggestion()}</p></div>
@@ -1857,7 +1969,8 @@ async function loadTeacherData() {
   if (!teacherStore.activeClassId || !teacherStore.classes.some(item => item.id === teacherStore.activeClassId)) {
     teacherStore.activeClassId = teacherStore.classes[0]?.id || null;
   }
-  renderTeacherDashboard();
+  if (teacherPanelView === "modules") renderTeacherModuleManager();
+  else renderTeacherDashboard();
 }
 
 function addCalendarDays(date, amount) {
@@ -1886,7 +1999,7 @@ function getClassProgramWeeks(classRecord, students, referenceDate = new Date())
       start,
       end,
       isCurrent: localDateKey(start) === localDateKey(currentWeekStart),
-      module: MODULES[index] || null
+      module: getActiveModules()[index] || null
     };
   });
 }
@@ -2045,12 +2158,14 @@ function renderTeacherDashboard() {
   teacherContent.innerHTML = `
     <section class="teacher-welcome">
       <div><span class="section-tag">ÖĞRETMEN KONTROL MERKEZİ</span><h1>Öğrencilerinizin gelişimi<br>tek bir yerde.</h1><p>Modül ilerlemelerini, haftalık planlarını ve kendi cevaplarını güncel olarak inceleyin.</p></div>
+      <div class="teacher-welcome-actions"><button class="button teacher-module-button" type="button" data-action="open-module-manager">🧩 Modülleri Yönet</button>
       <div class="teacher-date"><span>BUGÜN</span><strong>${new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "long" }).format(new Date())}</strong><small>${new Intl.DateTimeFormat("tr-TR", { weekday: "long" }).format(new Date())}</small></div>
+      </div>
     </section>
     <div class="teacher-stat-grid">
       ${teacherStat("👥", "Toplam öğrenci", teacherStore.students.length, "Kayıtlı öğrenci")}
       ${teacherStat("📖", "Bugünkü takip", `${loggedInToday} / ${readToday}`, "Giriş / 5 paragraf")}
-      ${teacherStat("📚", "Ortalama modül", `${averageModules} / 10`, "Sınıf ortalaması")}
+      ${teacherStat("📚", "Ortalama modül", `${averageModules} / ${getActiveModules().length}`, "Sınıf ortalaması")}
       ${teacherStat("🗓️", "Plan ortalaması", `%${averagePlan}`, "Haftalık tamamlama")}
     </div>
 
@@ -2109,6 +2224,107 @@ function renderTeacherAlertCenter(studentAlerts, overdueModuleStudents, pendingR
   </section>`;
 }
 
+function moduleFieldEditorValue(module) {
+  return module.fields.map(field => [field[0], field[1], field[2], field[3], Array.isArray(field[4]) ? field[4].join(",") : ""].join(" | ")).join("\n");
+}
+
+function openTeacherModuleEditor(moduleId = "") {
+  document.querySelector("#teacher-module-editor")?.remove();
+  const module = moduleId ? getModuleById(moduleId) : null;
+  const newModuleId = module?.id || (MODULES.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0) + 1);
+  const draft = module ? { ...module, story: MODULE_ANECDOTES[module.id]?.paragraphs?.join("\n\n") || module.story } : normalizeManagedModule({ id: newModuleId, title: "", short: "", description: "", goal: "", story: "", task: "", fields: [["cevabim", "Bu beceriyle ilgili kendi düşüncem", "textarea", "Kısa bir cevap yaz."]], checks: ["Görevi tamamladım."] }, newModuleId - 1);
+  teacherContent.insertAdjacentHTML("beforeend", `<div class="teacher-modal management-modal" id="teacher-module-editor"><div class="teacher-modal-backdrop" data-action="close-module-editor"></div><article class="management-dialog module-editor-dialog">
+    <header class="management-header"><div><span class="section-tag">${module ? "MODÜLÜ DÜZENLE" : "YENİ MODÜL"}</span><h2>${module ? escapeHTML(module.title) : "Yeni çalışma becerisi"}</h2><p>Öğrencilerin okuyacağı anlatımı ve uygulama alanlarını bu ekrandan yönetin.</p></div><button class="modal-close" type="button" data-action="close-module-editor" aria-label="Kapat">×</button></header>
+    <form id="teacher-module-form" class="module-management-form" data-module-id="${newModuleId}" novalidate>
+      <div class="module-editor-grid"><div class="field-group"><label for="managed-module-title">Modül başlığı</label><input id="managed-module-title" name="title" maxlength="100" value="${escapeHTML(draft.title)}" placeholder="Örnek: Etkili soru çözme" required></div><div class="field-group"><label for="managed-module-icon">İkon</label><input id="managed-module-icon" name="icon" maxlength="4" value="${escapeHTML(draft.icon)}" placeholder="📘"></div></div>
+      <div class="field-group"><label for="managed-module-short">Kısa açıklama</label><textarea id="managed-module-short" name="short" rows="2" maxlength="240" required>${escapeHTML(draft.short)}</textarea></div>
+      <div class="field-group"><label for="managed-module-description">Neden önemli?</label><textarea id="managed-module-description" name="description" rows="4" required>${escapeHTML(draft.description)}</textarea></div>
+      <div class="field-group"><label for="managed-module-goal">Öğrenme hedefi</label><textarea id="managed-module-goal" name="goal" rows="2" required>${escapeHTML(draft.goal)}</textarea></div>
+      <div class="field-group"><label for="managed-module-story">Uzun günlük hayat anekdotu</label><textarea id="managed-module-story" name="story" rows="6" placeholder="Öğrencinin kendini içinde bulacağı bir hikâye yazın.">${escapeHTML(draft.story)}</textarea></div>
+      <div class="field-group"><label for="managed-module-task">Küçük uygulama görevi</label><textarea id="managed-module-task" name="task" rows="3" required>${escapeHTML(draft.task)}</textarea></div>
+      <div class="field-group"><label for="managed-module-fields">Cevap alanları</label><textarea id="managed-module-fields" name="fields" rows="7" placeholder="id | Soru metni | textarea | İpucu">${escapeHTML(moduleFieldEditorValue(draft))}</textarea><small>Her satır bir alan olsun. Biçim: <b>id | soru | text veya textarea | ipucu</b></small></div>
+      <div class="field-group"><label for="managed-module-checks">Kontrol listesi</label><textarea id="managed-module-checks" name="checks" rows="5" placeholder="Görevi tamamladım.">${escapeHTML(draft.checks.join("\n"))}</textarea><small>Her satıra bir kontrol maddesi yazın.</small></div>
+      <div class="login-message" data-form-message role="alert"></div><div class="form-actions"><button class="button ghost" type="button" data-action="close-module-editor">Vazgeç</button><button class="button primary" type="submit">${module ? "Değişiklikleri Kaydet" : "Modülü Ekle"} ✓</button></div>
+    </form>
+  </article></div>`);
+  document.querySelector("#managed-module-title")?.focus();
+}
+
+function renderTeacherModuleManager() {
+  const activeModules = getActiveModules();
+  teacherContent.innerHTML = `<section class="teacher-management-page">
+    <div class="teacher-management-hero"><div><button class="button ghost small" type="button" data-action="back-teacher-dashboard">← Öğretmen paneli</button><span class="section-tag">İÇERİK YÖNETİMİ</span><h1>Modül yönetim paneli</h1><p>Öğrencilerin göreceği çalışma becerilerini inceleyin, güncelleyin veya yeni bir modül ekleyin.</p></div><div class="teacher-management-actions"><button class="button secondary small" type="button" data-action="export-module-catalog">↓ Modül yedeği</button><button class="button primary" type="button" data-action="new-module">＋ Yeni modül ekle</button></div></div>
+    <div class="module-manager-note"><span>💡</span><p>Değişiklikler bu tarayıcıda güvenle saklanır ve öğrenci önizlemesinde hemen görünür. Bir modülü kaldırmak, eski öğrenci cevaplarını silmez; yalnızca öğrenci listesinde pasifleştirir.</p></div>
+    <div class="module-manager-summary"><div><strong>${activeModules.length}</strong><span>Aktif modül</span></div><div><strong>${MODULES.length - activeModules.length}</strong><span>Pasif modül</span></div><div><strong>${MODULES.reduce((sum, module) => sum + module.fields.length, 0)}</strong><span>Cevap alanı</span></div></div>
+    <div class="module-manager-grid">${MODULES.map(module => `<article class="module-manager-card ${module.active === false ? "inactive" : ""}"><div class="module-manager-card-top"><span class="module-manager-icon">${escapeHTML(module.icon)}</span><span class="status-pill ${module.active === false ? "inactive" : "completed"}">${module.active === false ? "Pasif" : "Aktif"}</span></div><small>${module.id}. HAFTA</small><h2>${escapeHTML(module.title)}</h2><p>${escapeHTML(module.short)}</p><div class="module-manager-meta"><span>✏️ ${module.fields.length} cevap alanı</span><span>☑️ ${module.checks.length} kontrol</span></div><div class="module-manager-card-actions"><button class="button secondary small" type="button" data-action="inspect-module" data-module-id="${module.id}">İncele</button><button class="button ghost small" type="button" data-action="edit-module" data-module-id="${module.id}">Düzenle</button><button class="button ${module.active === false ? "primary" : "danger"} small" type="button" data-action="toggle-module" data-module-id="${module.id}">${module.active === false ? "Yayına al" : "Kaldır"}</button></div></article>`).join("")}</div>
+  </section>`;
+}
+
+function inspectTeacherModule(moduleId) {
+  const module = getModuleById(moduleId);
+  if (!module) return;
+  teacherContent.insertAdjacentHTML("beforeend", `<div class="teacher-modal management-modal" id="teacher-module-preview"><div class="teacher-modal-backdrop" data-action="close-module-preview"></div><article class="management-dialog module-preview-dialog"><header class="management-header"><div><span class="section-tag">MODÜL ÖNİZLEMESİ</span><h2>${escapeHTML(module.id)}. Hafta: ${escapeHTML(module.title)}</h2><p>Öğrencinin göreceği temel içerik.</p></div><button class="modal-close" type="button" data-action="close-module-preview">×</button></header><div class="module-preview-body"><div class="module-preview-lead"><span>${escapeHTML(module.icon)}</span><div><strong>${escapeHTML(module.short)}</strong><small>${module.fields.length} cevap alanı • ${module.checks.length} kontrol maddesi</small></div></div><section><h3>Neden önemli?</h3><p>${escapeHTML(module.description)}</p></section><section><h3>Öğrenme hedefi</h3><p>${escapeHTML(module.goal)}</p></section><section><h3>Günlük hayat anekdotu</h3><p>${escapeHTML(module.story)}</p></section><section><h3>Küçük uygulama</h3><p>${escapeHTML(module.task)}</p></section><section><h3>Cevap alanları</h3><ol>${module.fields.map(field => `<li>${escapeHTML(field[1])}</li>`).join("")}</ol></section><section><h3>Kontrol listesi</h3><ul>${module.checks.map(check => `<li>${escapeHTML(check)}</li>`).join("")}</ul></section></div><footer class="module-preview-footer"><button class="button ghost" type="button" data-action="close-module-preview">Kapat</button><button class="button primary" type="button" data-action="edit-module" data-module-id="${module.id}">Düzenle</button></footer></article></div>`);
+}
+
+function parseManagedModuleFields(raw) {
+  return String(raw || "").split(/\r?\n/).map(line => line.trim()).filter(Boolean).map((line, index) => {
+    const parts = line.split("|").map(item => item.trim());
+    const label = parts[1] || parts[0];
+    const type = parts[2] === "textarea" || parts[2] === "select" ? parts[2] : "text";
+    const options = type === "select" && parts[4] ? parts[4].split(",").map(item => item.trim()).filter(Boolean) : undefined;
+    return [parts[0] || moduleFieldKey(label, index), label, type, parts[3] || "Kısa bir cevap yaz.", options].filter((value, valueIndex) => valueIndex < 4 || value !== undefined);
+  });
+}
+
+function saveTeacherModule(form) {
+  const values = Object.fromEntries(new FormData(form).entries());
+  const title = String(values.title || "").trim();
+  const fields = parseManagedModuleFields(values.fields);
+  const checks = String(values.checks || "").split(/\r?\n/).map(item => item.trim()).filter(Boolean);
+  const message = form.querySelector("[data-form-message]");
+  if (!title || !String(values.description || "").trim() || !String(values.goal || "").trim() || !String(values.task || "").trim() || !fields.length || !checks.length) {
+    message.textContent = "Başlık, açıklama, hedef, görev, en az bir cevap alanı ve bir kontrol maddesi ekleyin.";
+    message.className = "login-message show error";
+    return;
+  }
+  const id = Number(form.dataset.moduleId);
+  const existing = getModuleById(id);
+  const updated = normalizeManagedModule({
+    ...(existing || {}), id, icon: String(values.icon || "📘").trim() || "📘", title, short: String(values.short || "").trim(), description: String(values.description || "").trim(), goal: String(values.goal || "").trim(), story: String(values.story || values.description || "").trim(), task: String(values.task || "").trim(), fields, checks, active: existing ? existing.active !== false : true, updatedAt: new Date().toISOString()
+  }, id - 1, existing || {});
+  if (existing) MODULES.splice(MODULES.findIndex(item => item.id === id), 1, updated);
+  else MODULES.push(updated);
+  const storyParagraphs = updated.story.split(/\r?\n\s*\r?\n/).map(item => item.trim()).filter(Boolean);
+  MODULE_ANECDOTES[id] = { title: "Bu becerinin günlük hayattaki karşılığı", paragraphs: storyParagraphs.length ? storyParagraphs : [updated.story], takeaway: updated.goal };
+  ensureModuleRuntimeData(updated);
+  saveManagedModuleCatalog();
+  document.querySelector("#teacher-module-editor")?.remove();
+  showToast(existing ? "Modül değişiklikleri kaydedildi. Öğrenci görünümü güncellendi. ✓" : "Yeni modül eklendi. Öğrenciler için yayına hazır. 🎉");
+  renderTeacherModuleManager();
+}
+
+function toggleTeacherModule(moduleId) {
+  const module = getModuleById(moduleId);
+  if (!module) return;
+  if (module.active !== false && getActiveModules().length <= 1) {
+    showToast("En az bir aktif modül bulunmalı.", "error");
+    return;
+  }
+  const nextActive = module.active === false;
+  if (!nextActive && !window.confirm(`${module.title} pasifleştirilecek. Öğrenciler bu modülü artık yeni bir modül olarak görmeyecek. Devam etmek ister misiniz?`)) return;
+  module.active = nextActive;
+  module.updatedAt = new Date().toISOString();
+  saveManagedModuleCatalog();
+  showToast(nextActive ? "Modül yeniden yayına alındı. ✓" : "Modül pasifleştirildi. Eski öğrenci kayıtları korundu.");
+  renderTeacherModuleManager();
+}
+
+function exportModuleCatalog() {
+  const backup = { app: "Verimli Ders Çalışma Akademisi", backupType: "module-catalog", schemaVersion: 1, exportedAt: new Date().toISOString(), modules: MODULES };
+  downloadJSONBackup(`vdca-moduller-${new Date().toISOString().slice(0, 10)}.json`, backup);
+  showToast("Modül yedeği indirildi. 💾");
+}
+
 function renderTeacherStudentTable(students) {
   if (!students.length) return `<div class="teacher-empty-class compact"><span>👋</span><h2>Bu sınıf henüz boş</h2><p>“Öğrenci Ekle” düğmesiyle ilk öğrenci giriş kodunu oluşturabilirsiniz.</p></div>`;
   const todayKey = localDateKey();
@@ -2117,7 +2333,7 @@ function renderTeacherStudentTable(students) {
     const loggedIn = Boolean(progress.payload?.attendance?.[todayKey]);
     const read = isReadingEntryCompleted(getReadingEntryForDate(progress.payload || {}, todayKey));
     const alerts = getTeacherStudentAlerts(student);
-    return `<tr class="${alerts.hasAlert ? "has-warning" : ""}" data-student-row data-search-name="${escapeHTML(student.name.toLocaleLowerCase("tr-TR"))}"><td><div class="student-name-cell"><span>${escapeHTML(student.name.charAt(0).toLocaleUpperCase("tr-TR"))}</span><div><strong>${escapeHTML(student.name)}</strong><small>${progress.last_activity ? "Aktif öğrenci" : "Henüz başlamadı"}</small></div></div></td><td><button class="code-chip" type="button" data-action="copy-student-code" data-code="${escapeHTML(student.code_hint)}">${escapeHTML(student.code_hint)} 📋</button></td><td><div class="table-progress"><div><i style="width:${Number(progress.completed_count || 0) * 10}%"></i></div><strong>${Number(progress.completed_count || 0)} / 10</strong></div></td><td><span class="percent-chip ${Number(progress.plan_percent || 0) >= 70 ? "good" : ""}">%${Number(progress.plan_percent || 0)}</span></td><td><div class="daily-status-stack"><span class="${loggedIn ? "yes" : "no"}">${loggedIn ? "✓ Giriş" : "— Giriş"}</span><span class="${read ? "yes" : "no"}">${read ? "✓ Okuma" : "— Okuma"}</span></div></td><td><div class="student-warning-stack">${alerts.overdueModules.length ? `<span class="module-warning">⚠ ${alerts.overdueModules.length} modül</span>` : ""}${alerts.missedReadingDays.length ? `<span class="reading-missed">📖 ${alerts.missedReadingDays.length} gün eksik</span>` : ""}${alerts.readingPendingToday ? `<span class="reading-pending">○ Okuma bekleniyor</span>` : `<span class="all-done">✓ Güncel</span>`}</div></td><td><span class="last-seen">${progress.last_activity ? formatRelativeDate(progress.last_activity) : "—"}</span></td><td><div class="row-actions"><button class="preview-student-button" type="button" data-action="preview-student" data-student-id="${student.id}" title="Öğrenci panelini yeni sekmede aç"><span>👁️</span> Görünüm</button><button class="button ghost small" type="button" data-action="view-student" data-student-id="${student.id}">İncele →</button><button class="manage-student-button" type="button" data-action="manage-student" data-student-id="${student.id}" aria-label="${escapeHTML(student.name)} için düzenleme seçeneklerini aç" title="Öğrenciyi yönet">•••</button></div></td></tr>`;
+    return `<tr class="${alerts.hasAlert ? "has-warning" : ""}" data-student-row data-search-name="${escapeHTML(student.name.toLocaleLowerCase("tr-TR"))}"><td><div class="student-name-cell"><span>${escapeHTML(student.name.charAt(0).toLocaleUpperCase("tr-TR"))}</span><div><strong>${escapeHTML(student.name)}</strong><small>${progress.last_activity ? "Aktif öğrenci" : "Henüz başlamadı"}</small></div></div></td><td><button class="code-chip" type="button" data-action="copy-student-code" data-code="${escapeHTML(student.code_hint)}">${escapeHTML(student.code_hint)} 📋</button></td><td><div class="table-progress"><div><i style="width:${getActiveModules().length ? Math.round((Number(progress.completed_count || 0) / getActiveModules().length) * 100) : 0}%"></i></div><strong>${Number(progress.completed_count || 0)} / ${getActiveModules().length}</strong></div></td><td><span class="percent-chip ${Number(progress.plan_percent || 0) >= 70 ? "good" : ""}">%${Number(progress.plan_percent || 0)}</span></td><td><div class="daily-status-stack"><span class="${loggedIn ? "yes" : "no"}">${loggedIn ? "✓ Giriş" : "— Giriş"}</span><span class="${read ? "yes" : "no"}">${read ? "✓ Okuma" : "— Okuma"}</span></div></td><td><div class="student-warning-stack">${alerts.overdueModules.length ? `<span class="module-warning">⚠ ${alerts.overdueModules.length} modül</span>` : ""}${alerts.missedReadingDays.length ? `<span class="reading-missed">📖 ${alerts.missedReadingDays.length} gün eksik</span>` : ""}${alerts.readingPendingToday ? `<span class="reading-pending">○ Okuma bekleniyor</span>` : `<span class="all-done">✓ Güncel</span>`}</div></td><td><span class="last-seen">${progress.last_activity ? formatRelativeDate(progress.last_activity) : "—"}</span></td><td><div class="row-actions"><button class="preview-student-button" type="button" data-action="preview-student" data-student-id="${student.id}" title="Öğrenci panelini yeni sekmede aç"><span>👁️</span> Görünüm</button><button class="button ghost small" type="button" data-action="view-student" data-student-id="${student.id}">İncele →</button><button class="manage-student-button" type="button" data-action="manage-student" data-student-id="${student.id}" aria-label="${escapeHTML(student.name)} için düzenleme seçeneklerini aç" title="Öğrenciyi yönet">•••</button></div></td></tr>`;
   }).join("")}</tbody></table></div>`;
 }
 
@@ -2321,7 +2537,7 @@ function buildRemoteStudentReport(student) {
     const module = MODULES.find(item => item.id === Number(lastAnswer[0]));
     lastAnswerText = `${module?.title || "Modül"}\n${module?.fields.filter(field => lastAnswer[1].values?.[field[0]]).map(field => `${field[1]} ${lastAnswer[1].values[field[0]]}`).join("\n") || ""}`;
   }
-  return `VERİMLİ DERS ÇALIŞMA AKADEMİSİ\nÖĞRETMEN GELİŞİM RAPORU\n\nÖğrenci: ${student.name}\nTarih: ${new Intl.DateTimeFormat("tr-TR").format(new Date())}\nTamamlanan modül: ${completedIds.length} / 10\nEtkileşimli atölye: ${activityCount} / 10\nBu haftaki giriş: ${weeklyTracking.loginCount} / 7\nBu haftaki 5 paragraf okuması: ${readingCount} / 7\nHaftalık plan: %${Number(progress.plan_percent || 0)}\nSon etkinlik: ${progress.last_activity ? formatDate(progress.last_activity) : "Henüz yok"}\n\nTamamlanan modüller:\n${completedIds.length ? completedIds.map(id => `${id}. ${MODULES.find(module => module.id === id)?.title || ""}`).join("\n") : "Henüz yok"}\n\nSon uygulama:\n${lastAnswerText}`;
+  return `VERİMLİ DERS ÇALIŞMA AKADEMİSİ\nÖĞRETMEN GELİŞİM RAPORU\n\nÖğrenci: ${student.name}\nTarih: ${new Intl.DateTimeFormat("tr-TR").format(new Date())}\nTamamlanan modül: ${completedIds.length} / ${getActiveModules().length}\nEtkileşimli atölye: ${activityCount} / ${getActiveModules().length}\nBu haftaki giriş: ${weeklyTracking.loginCount} / 7\nBu haftaki 5 paragraf okuması: ${readingCount} / 7\nHaftalık plan: %${Number(progress.plan_percent || 0)}\nSon etkinlik: ${progress.last_activity ? formatDate(progress.last_activity) : "Henüz yok"}\n\nTamamlanan modüller:\n${completedIds.length ? completedIds.map(id => `${id}. ${MODULES.find(module => module.id === id)?.title || ""}`).join("\n") : "Henüz yok"}\n\nSon uygulama:\n${lastAnswerText}`;
 }
 
 async function createTeacherClass(form) {
@@ -2441,6 +2657,7 @@ async function teacherLogout() {
   localStorage.removeItem(STORAGE_KEYS.cloudSession);
   cloudSession = null;
   teacherStore = { classes: [], students: [], activeClassId: null, selectedStudentId: null, reportWeekKey: null };
+  teacherPanelView = "dashboard";
   showWorkspace("gateway");
   document.querySelector("#teacher-login-form")?.reset();
 }
@@ -2675,6 +2892,24 @@ document.addEventListener("click", event => {
   else if (action === "student-logout") studentLogout();
   else if (action === "teacher-logout") teacherLogout();
   else if (action === "reload-teacher") loadTeacherData();
+  else if (action === "open-module-manager") {
+    teacherPanelView = "modules";
+    renderTeacherModuleManager();
+  }
+  else if (action === "back-teacher-dashboard") {
+    teacherPanelView = "dashboard";
+    renderTeacherDashboard();
+  }
+  else if (action === "new-module") openTeacherModuleEditor();
+  else if (action === "edit-module") {
+    document.querySelector("#teacher-module-preview")?.remove();
+    openTeacherModuleEditor(actionButton.dataset.moduleId);
+  }
+  else if (action === "inspect-module") inspectTeacherModule(actionButton.dataset.moduleId);
+  else if (action === "close-module-editor") document.querySelector("#teacher-module-editor")?.remove();
+  else if (action === "close-module-preview") document.querySelector("#teacher-module-preview")?.remove();
+  else if (action === "toggle-module") toggleTeacherModule(actionButton.dataset.moduleId);
+  else if (action === "export-module-catalog") exportModuleCatalog();
   else if (action === "select-teacher-class") {
     teacherStore.activeClassId = actionButton.dataset.classId;
     teacherStore.reportWeekKey = null;
@@ -2738,6 +2973,7 @@ document.addEventListener("submit", event => {
   else if (event.target.id === "create-class-form") createTeacherClass(event.target);
   else if (event.target.id === "add-student-form") addTeacherStudent(event.target);
   else if (event.target.id === "edit-student-form") updateTeacherStudent(event.target);
+  else if (event.target.id === "teacher-module-form") saveTeacherModule(event.target);
 });
 
 document.addEventListener("input", event => {
