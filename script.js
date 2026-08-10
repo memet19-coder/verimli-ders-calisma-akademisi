@@ -906,6 +906,80 @@ function recordDailyAttendance() {
   return true;
 }
 
+function getHomeWarningWeeks() {
+  const currentWeek = getReadingWeek();
+  const weekKeys = new Set([currentWeek.weekKey]);
+  const parseDateKey = key => {
+    const parts = String(key || "").split("-").map(Number);
+    return parts.length === 3 && parts.every(Number.isFinite) ? new Date(parts[0], parts[1] - 1, parts[2]) : null;
+  };
+  Object.keys(state.planHistory || {}).forEach(key => { if (parseDateKey(key)) weekKeys.add(key); });
+  Object.entries(state.readingLog || {}).forEach(([key, entry]) => {
+    const date = parseDateKey(entry?.readingDate || key);
+    if (date) weekKeys.add(getReadingWeek(date).weekKey);
+  });
+  Object.values(state.completed || {}).forEach(record => {
+    const date = record?.completedAt ? new Date(record.completedAt) : null;
+    if (date && !Number.isNaN(date.getTime())) weekKeys.add(getReadingWeek(date).weekKey);
+  });
+  return [...weekKeys].map(key => ({ key, week: getReadingWeek(parseDateKey(key) || new Date()) })).filter(item => item.week.start <= currentWeek.start).sort((a, b) => b.week.start - a.week.start);
+}
+
+function getHomeWarningModule(week, currentWeek) {
+  const entries = Object.entries(state.readingLog || {}).filter(([key, entry]) => {
+    const date = entry?.readingDate || key;
+    return date && getReadingWeek(new Date(`${date}T12:00:00`)).weekKey === week.weekKey;
+  });
+  const explicitId = entries.map(([, entry]) => Number(entry?.moduleId)).find(id => getModuleById(id));
+  if (explicitId) return getModuleById(explicitId);
+  const completedInWeek = Object.entries(state.completed || {}).find(([, record]) => record?.completedAt && getReadingWeek(new Date(record.completedAt)).weekKey === week.weekKey);
+  if (completedInWeek) return getModuleById(Number(completedInWeek[0]));
+  if (week.weekKey === currentWeek.weekKey) return getNextModule();
+  return null;
+}
+
+function getStudentHomeWarnings() {
+  const currentWeek = getReadingWeek();
+  const warnings = [];
+  getHomeWarningWeeks().forEach(({ week }) => {
+    const isCurrent = week.weekKey === currentWeek.weekKey;
+    const daysToCheck = isCurrent ? week.days.filter(day => day.key <= currentWeek.todayKey) : week.days;
+    const module = getHomeWarningModule(week, currentWeek);
+    daysToCheck.filter(day => !isReadingEntryCompleted(getReadingEntryForDate(state, day.key))).forEach(day => {
+      const labels = formatReadingDay(day.date);
+      warnings.push({
+        kind: day.key === currentWeek.todayKey ? "today" : "reading",
+        moduleId: module?.id || "",
+        title: `${module ? `${module.id}. modül` : "Haftalık okuma"} • ${labels.weekday} ${labels.date}`,
+        detail: day.key === currentWeek.todayKey ? "Bugünün 5 paragrafı henüz işaretlenmedi." : "Bu günün 5 paragrafı okunmamış. İstersen telafi edebilirsin.",
+        actionLabel: day.key === currentWeek.todayKey ? "Okumaya geç" : "Telafi et",
+        dateKey: day.key,
+        weekLabel: `${formatReadingDay(week.start).date} – ${formatReadingDay(week.end).date}`
+      });
+    });
+  });
+  const nextModule = getNextModule();
+  if (nextModule && !state.completed[nextModule.id]) {
+    const hasStarted = Boolean(state.answers[nextModule.id]?.values && Object.values(state.answers[nextModule.id].values).some(value => String(value).trim())) || Boolean(state.activities[nextModule.id]) || Boolean(state.quizzes[nextModule.id]);
+    warnings.push({
+      kind: hasStarted ? "module" : "module-start",
+      moduleId: nextModule.id,
+      title: `${nextModule.id}. modül • Uygulama tamamlanmadı`,
+      detail: hasStarted ? "Cevaplarını, kontrol listesini ve küçük uygulamayı tamamlayabilirsin." : "Bu haftanın çalışma becerisi seni bekliyor. Küçük bir adımla başlayabilirsin.",
+      actionLabel: hasStarted ? "Devam et" : "Modülü aç",
+      dateKey: "",
+      weekLabel: "Bu haftanın görevi"
+    });
+  }
+  return warnings;
+}
+
+function renderHomeWarnings() {
+  const warnings = getStudentHomeWarnings();
+  if (!warnings.length) return `<section class="home-followup-panel all-clear"><div class="home-followup-heading"><span>✓</span><div><span class="section-tag">ÇALIŞMA TAKİBİ</span><h3>Şimdilik bekleyen bir görevin yok</h3><p>Günlük okumanı ve modül adımlarını düzenli sürdürüyorsun. Harika gidiyorsun!</p></div></div></section>`;
+  return `<section class="home-followup-panel"><div class="home-followup-heading"><span>!</span><div><span class="section-tag">ÇALIŞMA TAKİBİ</span><h3>Takip edilmesi gerekenler</h3><p>Hangi hafta hangi adımın eksik kaldığını buradan görebilirsin. Bir gün kaçtıysa telafi edebilirsin.</p></div><strong class="home-followup-count">${warnings.length}</strong></div><div class="home-warning-list">${warnings.slice(0, 8).map(item => `<article class="home-warning-item ${item.kind}"><div class="home-warning-icon">${item.kind === "module" || item.kind === "module-start" ? "🧩" : item.kind === "today" ? "📖" : "↺"}</div><div class="home-warning-copy"><strong>${escapeHTML(item.title)}</strong><small>${escapeHTML(item.weekLabel)}</small><p>${escapeHTML(item.detail)}</p></div><button class="button secondary small" type="button" data-action="open-home-warning" data-module-id="${item.moduleId}" data-warning-date="${item.dateKey}">${escapeHTML(item.actionLabel)} →</button></article>`).join("")}</div>${warnings.length > 8 ? `<p class="home-followup-more">${warnings.length - 8} küçük adım daha listeleniyor. Önce üstteki görevlerden birini seçebilirsin.</p>` : ""}</section>`;
+}
+
 function navigate(page, options = {}) {
   state.page = page;
   state.activeModule = options.moduleId || null;
@@ -1415,6 +1489,8 @@ function renderHome() {
       <div class="home-reading-copy"><span class="section-tag">BUGÜNÜN OKUMA GÖREVİ</span><h3>${readToday ? "Bugünkü okuman tamamlandı!" : "Bugün 5 paragraf okumaya hazır mısın?"}</h3><p>Perşembeden Çarşambaya her gün küçük bir okuma adımı. Bu haftaki durumun: <strong>${readingTracking.readingCount}/7 gün</strong>.</p><div class="home-reading-days">${readingTracking.days.map(day => `<span class="${day.reading ? "done" : day.key === readingTracking.todayKey ? "today" : ""}" title="${escapeHTML(formatReadingDay(day.date).weekday)}">${day.reading ? "✓" : formatReadingDay(day.date).weekday.slice(0, 1)}</span>`).join("")}</div></div>
       <div class="home-reading-actions"><a class="button reading-launch" href="https://memet19-coder.github.io/okuma-takip-anlama-atolyesi/" target="_blank" rel="noopener noreferrer" data-action="visit-reading-workshop" data-module-id="${nextModule?.id || ""}">${readToday ? "Yeniden Oku" : "Bugünkü Okumayı Aç"} <span>↗</span></a><button class="button ${readToday ? "secondary" : "primary"}" type="button" data-action="complete-daily-reading" data-module-id="${nextModule?.id || ""}" ${readToday || !nextModule ? "disabled" : ""}>${readToday ? "Bugün Tamamlandı ✓" : "5 Paragrafı Okudum"}</button></div>
     </section>
+
+    ${renderHomeWarnings()}
 
     <div class="stats-grid">
       ${statCard("✅", "Tamamlanan modül", `${completedIds.length} / ${activeModules.length}`, completedIds.length ? "Harika, ilerliyorsun!" : "İlk adımını bekliyor.")}
@@ -2847,6 +2923,11 @@ document.addEventListener("click", event => {
   }
 
   if (action === "open-module") navigate("modules", { moduleId: Number(actionButton.dataset.moduleId) });
+  else if (action === "open-home-warning") {
+    const moduleId = Number(actionButton.dataset.moduleId);
+    readingTargetDateKey = actionButton.dataset.warningDate || null;
+    navigate("modules", { moduleId: moduleId || getNextModule()?.id });
+  }
   else if (action === "back-modules") navigate("modules");
   else if (action === "quiz-option") handleQuizAnswer(Number(actionButton.dataset.moduleId), Number(actionButton.dataset.optionIndex));
   else if (action === "activity-choice") handleActivityChoice(Number(actionButton.dataset.moduleId), Number(actionButton.dataset.itemIndex), actionButton.dataset.category);
