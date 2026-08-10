@@ -27,6 +27,7 @@ let previewStudentRecord = null;
 let readingTargetDateKey = null;
 let teacherStore = { classes: [], students: [], activeClassId: null, selectedStudentId: null, reportWeekKey: null };
 let teacherPanelView = "dashboard";
+let onboardingStep = 0;
 
 const STORAGE_KEYS = {
   settings: "vdca_settings",
@@ -41,6 +42,7 @@ const STORAGE_KEYS = {
   attendance: "vdca_daily_attendance",
   readingLog: "vdca_daily_reading_log",
   modules: "vdca_module_catalog",
+  onboarding: "vdca_student_onboarding_done",
   cloudSession: "vdca_cloud_session"
 };
 
@@ -622,7 +624,8 @@ const state = {
   quizzes: loadData(STORAGE_KEYS.quizzes, {}),
   activities: loadData(STORAGE_KEYS.activities, {}),
   attendance: loadData(STORAGE_KEYS.attendance, {}),
-  readingLog: loadData(STORAGE_KEYS.readingLog, {})
+  readingLog: loadData(STORAGE_KEYS.readingLog, {}),
+  onboardingDone: loadData(STORAGE_KEYS.onboarding, false)
 };
 
 cloudSession = loadData(STORAGE_KEYS.cloudSession, null);
@@ -978,6 +981,61 @@ function renderHomeWarnings() {
   const warnings = getStudentHomeWarnings();
   if (!warnings.length) return `<section class="home-followup-panel all-clear"><div class="home-followup-heading"><span>✓</span><div><span class="section-tag">ÇALIŞMA TAKİBİ</span><h3>Şimdilik bekleyen bir görevin yok</h3><p>Günlük okumanı ve modül adımlarını düzenli sürdürüyorsun. Harika gidiyorsun!</p></div></div></section>`;
   return `<section class="home-followup-panel"><div class="home-followup-heading"><span>!</span><div><span class="section-tag">ÇALIŞMA TAKİBİ</span><h3>Takip edilmesi gerekenler</h3><p>Hangi hafta hangi adımın eksik kaldığını buradan görebilirsin. Bir gün kaçtıysa telafi edebilirsin.</p></div><strong class="home-followup-count">${warnings.length}</strong></div><div class="home-warning-list">${warnings.slice(0, 8).map(item => `<article class="home-warning-item ${item.kind}"><div class="home-warning-icon">${item.kind === "module" || item.kind === "module-start" ? "🧩" : item.kind === "today" ? "📖" : "↺"}</div><div class="home-warning-copy"><strong>${escapeHTML(item.title)}</strong><small>${escapeHTML(item.weekLabel)}</small><p>${escapeHTML(item.detail)}</p></div><button class="button secondary small" type="button" data-action="open-home-warning" data-module-id="${item.moduleId}" data-warning-date="${item.dateKey}">${escapeHTML(item.actionLabel)} →</button></article>`).join("")}</div>${warnings.length > 8 ? `<p class="home-followup-more">${warnings.length - 8} küçük adım daha listeleniyor. Önce üstteki görevlerden birini seçebilirsin.</p>` : ""}</section>`;
+}
+
+function getNextStudentAction() {
+  const tracking = getWeeklyTracking();
+  const todayEntry = getReadingEntryForDate(state, tracking.todayKey) || {};
+  const nextModule = getNextModule();
+  if (!isReadingEntryCompleted(todayEntry)) return { type: "reading", icon: "📖", eyebrow: "BUGÜNÜN İLK ADIMI", title: "Bugün 5 paragraf oku", detail: `${tracking.readingCount}/7 günlük okuma tamamlandı. Okumayı bitirince buraya dönüp işaretleyebilirsin.`, actionLabel: "Okumaya geç", moduleId: nextModule?.id || "", dateKey: tracking.todayKey };
+  if (nextModule && !state.completed[nextModule.id]) {
+    const started = Boolean(state.answers[nextModule.id]?.values && Object.values(state.answers[nextModule.id].values).some(value => String(value).trim())) || Boolean(state.activities[nextModule.id]);
+    return { type: "module", icon: "🧩", eyebrow: "SIRADAKİ GELİŞİM ADIMI", title: `${nextModule.id}. modüle ${started ? "devam et" : "başla"}`, detail: started ? "Cevaplarını, kontrol listesini ve uygulama adımlarını tamamlayabilirsin." : "Bu haftanın becerisini kısa bölümler hâlinde keşfet.", actionLabel: started ? "Devam et" : "Modülü aç", moduleId: nextModule.id, dateKey: "" };
+  }
+  const plan = getPlanStats();
+  if (plan.planned && plan.completed < plan.planned) return { type: "plan", icon: "🗓️", eyebrow: "HAFTALIK PLAN", title: "Planındaki bir görevi tamamla", detail: `${plan.completed}/${plan.planned} görev tamamlandı. Küçük bir görev seçip başlayabilirsin.`, actionLabel: "Planı aç", moduleId: "", dateKey: "" };
+  return { type: "success", icon: "🌟", eyebrow: "BUGÜNÜN MESAJI", title: "Düzenli ilerliyorsun", detail: "Bugün istersen tamamladığın bir modülü yeniden inceleyebilirsin.", actionLabel: "Modülleri gör", moduleId: nextModule?.id || getActiveModules()[0]?.id || "", dateKey: "" };
+}
+
+function renderNextStudentAction() {
+  const item = getNextStudentAction();
+  const action = item.type === "plan" ? `data-page="plan"` : item.type === "success" ? `data-page="modules"` : `data-action="open-home-warning" data-module-id="${item.moduleId}" data-warning-date="${item.dateKey}"`;
+  return `<section class="next-action-card ${item.type}"><div class="next-action-icon">${item.icon}</div><div class="next-action-copy"><span class="section-tag">${item.eyebrow}</span><h3>${item.title}</h3><p>${item.detail}</p></div><button class="button ${item.type === "success" ? "secondary" : "primary"} small" type="button" ${action} title="${escapeHTML(item.detail)}">${item.actionLabel} →</button></section>`;
+}
+
+function renderStudentColorLegend() {
+  return `<div class="student-color-legend" aria-label="Durum renkleri"><span><i class="done"></i> Tamamlandı</span><span><i class="today"></i> Bugün yapılacak</span><span><i class="missed"></i> Kaçırıldı / telafi</span><span><i class="locked"></i> Henüz zamanı gelmedi</span></div>`;
+}
+
+function renderStudentWeeklyTimeline() {
+  const tracking = getWeeklyTracking();
+  return `<section class="weekly-timeline-panel"><div class="weekly-timeline-heading"><div><span class="section-tag">HAFTALIK ZAMAN ÇİZELGESİ</span><h3>Perşembe – Çarşamba okuma akışın</h3><p>Bu hafta <strong>${tracking.loginCount}/7 gün</strong> giriş yaptın, <strong>${tracking.readingCount}/7 gün</strong> okuma tamamladın.</p></div><strong>${tracking.readingCount}/7 gün</strong></div><div class="weekly-timeline">${tracking.days.map(day => { const status = day.reading ? (day.late ? "late" : "done") : day.key === tracking.todayKey ? "today" : day.key < tracking.todayKey ? "missed" : "locked"; const labels = formatReadingDay(day.date); const text = day.reading ? (day.late ? "Telafi" : "Okundu") : day.key === tracking.todayKey ? "Bugün" : day.key < tracking.todayKey ? "Kaçırıldı" : "Bekliyor"; return `<div class="timeline-day ${status}"><span>${escapeHTML(labels.weekday)}</span><strong>${escapeHTML(labels.date)}</strong><small>${text}</small></div>`; }).join("")}</div>${renderStudentColorLegend()}</section>`;
+}
+
+function getModuleRouteStage(moduleId) {
+  const module = getModuleById(moduleId);
+  if (!module) return 1;
+  if (state.completed[moduleId]) return 5;
+  const filled = module.fields.filter(field => String(state.answers[moduleId]?.values?.[field[0]] || "").trim()).length;
+  const checks = (state.checks[moduleId] || []).filter(Boolean).length;
+  const lab = Object.keys(state.activities[moduleId]?.choices || {}).length;
+  const quiz = Number.isInteger(state.quizzes[moduleId]?.selected);
+  if (quiz) return 5;
+  if (lab) return 4;
+  if (filled || checks) return 3;
+  return 1;
+}
+
+const STUDENT_ONBOARDING_STEPS = [
+  ["👋", "Akademiye hoş geldin!", "Her hafta bir çalışma becerisi öğrenecek, kısa bir uygulama yapacak ve ilerlemeni burada göreceksin."],
+  ["📚", "Modül nasıl tamamlanır?", "Önce anlatımı oku, sonra mini soruyu ve etkileşimli atölyeyi dene. Cevaplarını yazıp kontrol listesini işaretle."],
+  ["📖", "Paragraf görevi nasıl yapılır?", "Her gün Okuma Atölyesi’ne gidip 5 paragraf oku. Sonra Akademi’ye dönerek o günün kaydını tamamla."]
+];
+
+function renderStudentOnboarding() {
+  const step = STUDENT_ONBOARDING_STEPS[onboardingStep] || STUDENT_ONBOARDING_STEPS[0];
+  const last = onboardingStep === STUDENT_ONBOARDING_STEPS.length - 1;
+  return `<div class="student-onboarding" role="dialog" aria-modal="true" aria-labelledby="onboarding-title"><div class="student-onboarding-backdrop" data-action="close-onboarding"></div><article class="student-onboarding-card"><button class="onboarding-skip" type="button" data-action="close-onboarding">Atla</button><div class="onboarding-progress">${STUDENT_ONBOARDING_STEPS.map((_, index) => `<i class="${index === onboardingStep ? "active" : index < onboardingStep ? "done" : ""}"></i>`).join("")}</div><div class="onboarding-icon">${step[0]}</div><span class="section-tag">${onboardingStep + 1}. ADIM</span><h2 id="onboarding-title">${step[1]}</h2><p>${step[2]}</p><button class="button primary" type="button" data-action="onboarding-next">${last ? "Akademiye başla" : "Devam et"} →</button></article></div>`;
 }
 
 function navigate(page, options = {}) {
@@ -1484,11 +1542,15 @@ function renderHome() {
       </div>
     </section>
 
+    ${renderNextStudentAction()}
+
     <section class="home-reading-card ${readToday ? "done" : ""}">
       <div class="home-reading-icon">${readToday ? "✓" : "5"}<small>PARAGRAF</small></div>
       <div class="home-reading-copy"><span class="section-tag">BUGÜNÜN OKUMA GÖREVİ</span><h3>${readToday ? "Bugünkü okuman tamamlandı!" : "Bugün 5 paragraf okumaya hazır mısın?"}</h3><p>Perşembeden Çarşambaya her gün küçük bir okuma adımı. Bu haftaki durumun: <strong>${readingTracking.readingCount}/7 gün</strong>.</p><div class="home-reading-days">${readingTracking.days.map(day => `<span class="${day.reading ? "done" : day.key === readingTracking.todayKey ? "today" : ""}" title="${escapeHTML(formatReadingDay(day.date).weekday)}">${day.reading ? "✓" : formatReadingDay(day.date).weekday.slice(0, 1)}</span>`).join("")}</div></div>
       <div class="home-reading-actions"><a class="button reading-launch" href="https://memet19-coder.github.io/okuma-takip-anlama-atolyesi/" target="_blank" rel="noopener noreferrer" data-action="visit-reading-workshop" data-module-id="${nextModule?.id || ""}">${readToday ? "Yeniden Oku" : "Bugünkü Okumayı Aç"} <span>↗</span></a><button class="button ${readToday ? "secondary" : "primary"}" type="button" data-action="complete-daily-reading" data-module-id="${nextModule?.id || ""}" ${readToday || !nextModule ? "disabled" : ""}>${readToday ? "Bugün Tamamlandı ✓" : "5 Paragrafı Okudum"}</button></div>
     </section>
+
+    ${renderStudentWeeklyTimeline()}
 
     ${renderHomeWarnings()}
 
@@ -1545,7 +1607,7 @@ function renderHome() {
         ${recentActivity.length ? `<div class="activity-list">${recentActivity.map(item => `<div class="activity-item"><span class="activity-icon">${item.module.icon}</span><div><strong>${item.module.title}</strong><small>${formatDate(item.date)} tarihinde tamamlandı</small></div><span class="activity-check">✓</span></div>`).join("")}</div>` : `<div class="empty-state compact"><span>🌱</span>İlk modülünü tamamladığında gelişim günlüğün burada başlayacak.</div>`}
       </section>
       <section class="panel coach-card"><span class="coach-avatar">🧑‍🏫</span><div><span class="section-tag">ÖĞRETMEN NOTU</span><h3>Bugünün küçük hatırlatması</h3><blockquote>“${tip}”</blockquote><button class="text-button" type="button" data-page="tips">Diğer tavsiyeleri gör →</button></div></section>
-    </div>`;
+    </div>${!studentPreviewMode && !state.onboardingDone ? renderStudentOnboarding() : ""}`;
 }
 
 function statCard(icon, label, value, note, textValue = false) {
@@ -1590,6 +1652,7 @@ function renderModuleDetail(moduleId) {
   const labPoint = state.completed[module.id] || Object.keys(activityRecord.choices || {}).length === ACTIVITY_LABS[module.id].items.length ? 1 : 0;
   const readingPoint = state.completed[module.id] || hasReadingForModule(module.id) ? 1 : 0;
   const progress = Math.round(((checkedCount + filledCount + quizPoint + labPoint + readingPoint) / (module.checks.length + module.fields.length + 3)) * 100);
+  const routeStage = getModuleRouteStage(module.id);
 
   main.innerHTML = `<article class="module-detail">
     <button class="button ghost small back-button" type="button" data-action="back-modules">← Tüm modüller</button>
@@ -1600,7 +1663,7 @@ function renderModuleDetail(moduleId) {
     </header>
 
     <nav class="learning-route" aria-label="Modül öğrenme rotası">
-      ${[["1", "Keşfet"], ["2", "Öğren"], ["3", "Örneği gör"], ["4", "Kendini sına"], ["5", "Uygula"]].map((step, index) => `<div class="route-step"><span>${step[0]}</span><b>${step[1]}</b>${index < 4 ? "<i></i>" : ""}</div>`).join("")}
+      ${[["1", "Keşfet"], ["2", "Öğren"], ["3", "Örneği gör"], ["4", "Kendini sına"], ["5", "Uygula"]].map((step, index) => `<div class="route-step ${index + 1 < routeStage ? "done" : index + 1 === routeStage ? "active" : ""}"><span>${index + 1 < routeStage ? "✓" : step[0]}</span><b>${step[1]}</b>${index < 4 ? "<i></i>" : ""}</div>`).join("")}
     </nav>
 
     <section class="warmup-card"><div class="warmup-icon">💭</div><div><span class="section-tag">BAŞLAMADAN DÜŞÜN</span><h3>Kendine kısa bir soru sor</h3><p>${extra.warmup}</p><small>Cevabını zihninden geçirmen yeterli. Burada doğru veya yanlış yok.</small></div></section>
@@ -2753,6 +2816,8 @@ function resetAllData() {
   state.activities = {};
   state.attendance = {};
   state.readingLog = {};
+  state.onboardingDone = false;
+  onboardingStep = 0;
   persistStudentStateLocally();
   scheduleStudentSync();
   showToast("Tüm veriler temizlendi. Yeni bir başlangıç yapabilirsin. 🌱");
@@ -2922,7 +2987,20 @@ document.addEventListener("click", event => {
     return;
   }
 
-  if (action === "open-module") navigate("modules", { moduleId: Number(actionButton.dataset.moduleId) });
+  if (action === "onboarding-next") {
+    if (onboardingStep >= STUDENT_ONBOARDING_STEPS.length - 1) {
+      state.onboardingDone = true;
+      saveData(STORAGE_KEYS.onboarding, true);
+      showToast("Hazırsın! Bugünün küçük adımıyla başlayabilirsin. 🌱");
+    } else onboardingStep += 1;
+    renderHome();
+  }
+  else if (action === "close-onboarding") {
+    state.onboardingDone = true;
+    saveData(STORAGE_KEYS.onboarding, true);
+    renderHome();
+  }
+  else if (action === "open-module") navigate("modules", { moduleId: Number(actionButton.dataset.moduleId) });
   else if (action === "open-home-warning") {
     const moduleId = Number(actionButton.dataset.moduleId);
     readingTargetDateKey = actionButton.dataset.warningDate || null;
