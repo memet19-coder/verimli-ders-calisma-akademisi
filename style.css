@@ -298,6 +298,29 @@ a:focus-visible {
 
 .home-reading-card { display: grid; grid-template-columns: 88px minmax(0, 1fr) auto; align-items: center; gap: 18px; margin-top: 18px; padding: 18px 20px; border: 1px solid #cdd6fa; border-radius: 22px; background: linear-gradient(135deg, #fff, #f3f5ff); box-shadow: var(--shadow-small); }
 .home-reading-card.done { border-color: #9fdcc9; background: linear-gradient(135deg, #fff, #eefaf6); }
+.home-followup-panel { margin-top: 18px; padding: 18px; border: 1px solid #f0d7aa; border-radius: 22px; background: linear-gradient(135deg, #fffaf0, #fff6e8); box-shadow: var(--shadow-small); }
+.home-followup-panel.all-clear { border-color: #bce5d8; background: linear-gradient(135deg, #f2fbf8, #e9f8f2); }
+.home-followup-heading { display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; align-items: center; gap: 12px; }
+.home-followup-heading > span { display: grid; width: 42px; height: 42px; place-items: center; border-radius: 13px; color: #fff; background: #df8b2d; font-size: 22px; font-weight: 900; }
+.home-followup-panel.all-clear .home-followup-heading > span { background: #2fa77f; }
+.home-followup-heading .section-tag { color: #a66b24; }
+.home-followup-panel.all-clear .home-followup-heading .section-tag { color: #237c62; }
+.home-followup-heading h3, .home-followup-heading p { margin: 0; }
+.home-followup-heading h3 { margin-top: 2px; font-size: 18px; }
+.home-followup-heading p { margin-top: 3px; color: var(--muted); font-size: 10px; }
+.home-followup-count { min-width: 38px; padding: 9px 12px; border-radius: 12px; color: #965f1e; background: rgba(255,255,255,.74); text-align: center; font-size: 18px; }
+.home-warning-list { display: grid; gap: 8px; margin-top: 14px; }
+.home-warning-item { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 10px 11px; border: 1px solid rgba(216,163,93,.26); border-radius: 14px; background: rgba(255,255,255,.76); }
+.home-warning-item.module, .home-warning-item.module-start { border-color: #cbd5ff; background: #f5f6ff; }
+.home-warning-icon { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 10px; background: #ffedcf; font-size: 17px; }
+.home-warning-item.module .home-warning-icon, .home-warning-item.module-start .home-warning-icon { background: var(--primary-soft); }
+.home-warning-copy strong, .home-warning-copy small, .home-warning-copy p { display: block; }
+.home-warning-copy strong { font-size: 11px; }
+.home-warning-copy small { margin-top: 1px; color: #a66b24; font-size: 8px; font-weight: 800; }
+.home-warning-item.module .home-warning-copy small, .home-warning-item.module-start .home-warning-copy small { color: var(--primary-dark); }
+.home-warning-copy p { margin: 3px 0 0; color: var(--muted); font-size: 9px; }
+.home-warning-item .button { min-height: 34px; padding: 7px 10px; font-size: 10px; white-space: nowrap; }
+.home-followup-more { margin: 10px 2px 0; color: #9a7650; font-size: 9px; }
 .home-reading-icon { display: grid; width: 72px; height: 72px; place-items: center; align-content: center; border-radius: 20px; color: #fff; background: linear-gradient(145deg, #5267e8, #7658d4); font-family: Georgia, "Times New Roman", serif; font-size: 34px; font-weight: 900; line-height: .9; }
 .home-reading-card.done .home-reading-icon { background: linear-gradient(145deg, #259574, #48b995); }
 .home-reading-icon small { margin-top: 7px; font-family: Inter, ui-rounded, "Segoe UI", sans-serif; font-size: 7px; letter-spacing: .12em; }
@@ -1271,6 +1294,12 @@ body {
 }
 
 @media (max-width: 700px) {
+  .home-followup-panel { padding: 14px; }
+  .home-followup-heading { grid-template-columns: 38px minmax(0, 1fr) auto; gap: 9px; }
+  .home-followup-heading > span { width: 38px; height: 38px; }
+  .home-followup-heading h3 { font-size: 16px; }
+  .home-warning-item { grid-template-columns: 34px minmax(0, 1fr); }
+  .home-warning-item .button { grid-column: 2; justify-self: start; }
   .teacher-welcome-actions { width: 100%; align-items: stretch; flex-direction: column; }
   .teacher-module-button { width: 100%; }
   .module-manager-grid, .module-manager-summary { grid-template-columns: 1fr; }
