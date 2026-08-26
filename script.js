@@ -2668,6 +2668,24 @@ function getRemoteWorkshop(student) {
   return normalizeWorkshopState(getStudentProgress(student).payload?.workshop);
 }
 
+function inspectTeacherWorkshopModule(moduleId) {
+  const module = WORKSHOP_MODULES.find(item => item.id === Number(moduleId));
+  if (!module) return;
+  document.querySelector("#teacher-workshop-preview")?.remove();
+  const story = module.story || { title: "Günlük hayattan bir örnek", paragraphs: [], takeaway: "" };
+  teacherContent.insertAdjacentHTML("beforeend", `<div class="teacher-modal management-modal" id="teacher-workshop-preview"><div class="teacher-modal-backdrop" data-action="close-workshop-preview"></div><article class="management-dialog workshop-preview-dialog" role="dialog" aria-modal="true" aria-labelledby="workshop-preview-title"><header class="management-header workshop-preview-header"><div><span class="section-tag">${module.id}. HAFTA • ÖĞRETMEN ÖNİZLEMESİ</span><h2 id="workshop-preview-title">${module.icon} ${escapeHTML(module.title)}</h2><p>Öğrencinin bu hafta göreceği ders içeriğinin tamamı.</p></div><button class="modal-close" type="button" data-action="close-workshop-preview" aria-label="Önizlemeyi kapat">×</button></header><div class="module-preview-body workshop-preview-body">
+    <div class="module-preview-lead workshop-preview-lead"><span>${module.icon}</span><div><strong>${escapeHTML(module.short)}</strong><small>${module.lesson.length} anlatım kartı • ${module.steps.length} uygulama adımı • ${module.fields.length} cevap alanı • ${module.checks.length} kontrol maddesi</small></div></div>
+    <section><span class="workshop-preview-kicker">BU HAFTA NEDEN ÖNEMLİ?</span><h3>${escapeHTML(module.goal)}</h3><p>${escapeHTML(module.description)}</p></section>
+    <section><span class="workshop-preview-kicker">ÖĞRETMEN ANLATIMI</span><div class="workshop-preview-lesson-grid">${module.lesson.map(item => `<article><span>${item[0]}</span><div><strong>${escapeHTML(item[1])}</strong><p>${escapeHTML(item[2])}</p></div></article>`).join("")}</div></section>
+    <section><span class="workshop-preview-kicker">UYGULAMA YOLU</span><ol class="workshop-preview-steps">${module.steps.map(step => `<li>${escapeHTML(step)}</li>`).join("")}</ol></section>
+    <section class="workshop-preview-story"><span class="workshop-preview-kicker">DÜŞÜNDÜREN ANEKDOT</span><h3>${escapeHTML(story.title)}</h3>${(story.paragraphs || []).map(paragraph => `<p>${escapeHTML(paragraph)}</p>`).join("")}<blockquote>${escapeHTML(story.takeaway || "")}</blockquote></section>
+    <section class="workshop-preview-task"><span class="workshop-preview-kicker">HAFTALIK UYGULAMA</span><h3>Öğrencinin görevi</h3><p>${escapeHTML(module.task)}</p></section>
+    <section><span class="workshop-preview-kicker">ÖĞRENCİNİN CEVAPLAYACAĞI SORULAR</span><div class="workshop-preview-question-list">${module.fields.map((field, index) => `<article><span>${index + 1}</span><div><strong>${escapeHTML(field[1])}</strong><small>${escapeHTML(field[3] || "Kısa bir cevap yaz.")}</small></div></article>`).join("")}</div></section>
+    <section><span class="workshop-preview-kicker">KONTROL LİSTESİ</span><ul class="workshop-preview-checks">${module.checks.map(check => `<li><span>□</span>${escapeHTML(check)}</li>`).join("")}</ul></section>
+    <section class="workshop-preview-quiz"><span class="workshop-preview-kicker">MİNİ BİLGİ KONTROLÜ</span><h3>${escapeHTML(module.quiz.question)}</h3><div>${module.quiz.options.map((option, index) => `<p class="${index === module.quiz.answer ? "correct" : ""}"><b>${String.fromCharCode(65 + index)}</b>${escapeHTML(option)}${index === module.quiz.answer ? " <span>✓ Doğru cevap</span>" : ""}</p>`).join("")}</div><small><strong>Açıklama:</strong> ${escapeHTML(module.quiz.explanation)}</small></section>
+  </div><footer class="module-preview-footer"><button class="button ghost" type="button" data-action="close-workshop-preview">Kapat</button></footer></article></div>`);
+}
+
 function renderTeacherWorkshopTracking() {
   const activeClass = teacherStore.classes.find(item => item.id === teacherStore.activeClassId) || null;
   const visibleStudents = activeClass ? teacherStore.students.filter(item => item.class_id === activeClass.id) : [];
@@ -2694,7 +2712,7 @@ function renderTeacherWorkshopTracking() {
         return `<article class="teacher-workshop-student ${workshop.startedAt ? "started" : "waiting"} ${overdue.length ? "has-overdue" : ""}"><span class="teacher-workshop-avatar">${escapeHTML(student.name.charAt(0).toLocaleUpperCase("tr-TR"))}</span><div class="teacher-workshop-student-name"><strong>${escapeHTML(student.name)}</strong><small>${workshop.startedAt ? `${startedAt} tarihinde başladı${overdue.length ? ` • ⚠ ${overdue.length} geçmiş hafta eksik` : ""}` : "Atölyeyi henüz başlatmadı"}</small></div><div class="teacher-workshop-week"><small>PROGRAM HAFTASI</small><strong>${workshop.startedAt ? `${week} / 10` : "—"}</strong></div><div class="teacher-workshop-meter"><span><i style="width:${completed * 10}%"></i></span><strong>${completed}/10 tamamlandı</strong><small>${last}</small></div><div class="teacher-workshop-dots">${WORKSHOP_MODULES.map(module => `<i class="${workshop.completed[module.id] ? "done" : module.id === week && workshop.startedAt ? "current" : module.id < week && workshop.startedAt ? "missed" : module.id > week || !workshop.startedAt ? "locked" : ""}" title="${module.id}. ${escapeHTML(module.title)}">${workshop.completed[module.id] ? "✓" : module.id}</i>`).join("")}</div><button class="button ghost small" type="button" data-action="view-student" data-student-id="${student.id}">Gelişim dosyası →</button></article>`;
       }).join("")}</div>` : `<div class="teacher-empty-class compact"><span>👋</span><h2>Bu sınıfta öğrenci yok</h2><p>Öğretmen ana panelinden yeni öğrenci ekleyebilirsiniz.</p></div>`}
     </section>
-    <section class="teacher-workshop-curriculum"><div class="section-heading"><div><span class="section-tag">10 HAFTALIK DERS AKIŞI</span><h2>Program içerikleri</h2><p>Eklediğiniz PDF derslerinin ana kavramları ve uygulamaları ayrı bir rota olarak hazırlandı.</p></div></div><div class="teacher-workshop-curriculum-grid">${WORKSHOP_MODULES.map(module => `<article><span>${module.icon}</span><div><small>${module.id}. HAFTA</small><strong>${module.title}</strong><p>${module.short}</p></div></article>`).join("")}</div></section></section>`;
+    <section class="teacher-workshop-curriculum"><div class="section-heading"><div><span class="section-tag">10 HAFTALIK DERS AKIŞI</span><h2>Program içerikleri</h2><p>Bir haftanın anlatımını, anekdotunu, uygulamasını ve öğrenci sorularını görmek için karttaki <strong>İçeriği İncele</strong> düğmesine basın.</p></div></div><div class="teacher-workshop-curriculum-grid">${WORKSHOP_MODULES.map(module => `<article><span>${module.icon}</span><div><small>${module.id}. HAFTA</small><strong>${module.title}</strong><p>${module.short}</p><button class="button ghost small" type="button" data-action="inspect-workshop-module" data-workshop-module-id="${module.id}" aria-label="${module.id}. hafta ${escapeHTML(module.title)} içeriğini incele">İçeriği İncele →</button></div></article>`).join("")}</div></section></section>`;
 }
 
 function renderTeacherDashboard() {
@@ -3523,6 +3541,8 @@ document.addEventListener("click", event => {
     teacherPanelView = "workshop";
     renderTeacherWorkshopTracking();
   }
+  else if (action === "inspect-workshop-module") inspectTeacherWorkshopModule(actionButton.dataset.workshopModuleId);
+  else if (action === "close-workshop-preview") document.querySelector("#teacher-workshop-preview")?.remove();
   else if (action === "back-teacher-dashboard") {
     teacherPanelView = "dashboard";
     renderTeacherDashboard();
