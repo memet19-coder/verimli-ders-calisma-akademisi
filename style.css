@@ -1295,6 +1295,7 @@ body {
 
 /* Verimli Çalışma Atölyesi: ana Akademiden ayrı, öğrenciye özel 10 haftalık rota */
 .workshop-nav-item { color: #9a5311; background: linear-gradient(135deg, #fff8e9, #fff2dc); }
+.workshop-nav-item[hidden] { display: none!important; }
 .workshop-nav-item:hover, .workshop-nav-item.active { color: #fff; background: linear-gradient(135deg, #e77a21, #f3a63e); box-shadow: 0 10px 22px rgba(223,119,31,.22); }
 .workshop-home-card { display: grid; grid-template-columns: 112px minmax(0,1fr) auto; align-items: center; gap: 22px; margin: 18px 0; padding: 20px 22px; overflow: hidden; border: 1px solid #f4d39d; border-radius: 24px; background: linear-gradient(120deg,#fffaf0,#fff3df 64%,#ffead0); box-shadow: 0 13px 32px rgba(163,101,34,.08); }
 .workshop-home-mark { display: grid; width: 100px; height: 100px; place-items: center; align-content: center; border-radius: 25px; color: #fff; background: linear-gradient(145deg,#e77720,#f5ad43); box-shadow: 0 12px 24px rgba(218,111,27,.23); }
@@ -1396,6 +1397,20 @@ body {
 .teacher-workshop-roster-head { display: flex; align-items: end; justify-content: space-between; gap: 20px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
 .teacher-workshop-roster-head h2 { margin: 4px 0; font-size: 25px; }
 .teacher-workshop-roster-head p { margin: 0; color: var(--muted); }
+.teacher-workshop-roster-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
+.workshop-student-form { display: grid; grid-template-columns: minmax(220px,1.2fr) repeat(3,minmax(170px,1fr)) auto; align-items: end; gap: 12px; margin-top: 16px; padding: 17px; border: 1px solid #f0cf9f; border-radius: 17px; background: linear-gradient(135deg,#fffaf1,#fff6e8); }
+.workshop-student-form-heading { display: grid; grid-template-columns: 42px 1fr; align-items: center; gap: 10px; }
+.workshop-student-form-heading > span { display: grid; width: 40px; height: 40px; place-items: center; border-radius: 12px; color: #fff; background: linear-gradient(145deg,#dd751f,#eea23f); font-size: 20px; }
+.workshop-student-form-heading small { color: #c66a1c; font-size: 7px; font-weight: 900; letter-spacing: .08em; }
+.workshop-student-form-heading h3 { margin: 2px 0; font-size: 14px; }
+.workshop-student-form-heading p { margin: 0; color: var(--muted); font-size: 8px; }
+.workshop-student-form .field-group { margin: 0; }
+.workshop-student-form .field-group label { font-size: 8px; }
+.workshop-student-form .field-group input { min-height: 42px; background: #fff; }
+.workshop-student-form .login-message { grid-column: 2 / -1; margin: -4px 0 0; }
+.workshop-existing-code { display: grid; min-height: 42px; align-content: center; padding: 8px 11px; border: 1px dashed #e5bd83; border-radius: 11px; background: #fff; }
+.workshop-existing-code small { color: #b8661d; font-size: 7px; font-weight: 900; }
+.workshop-existing-code strong { margin-top: 2px; color: #6b431e; font-size: 11px; letter-spacing: .05em; }
 .teacher-workshop-class-tabs { display: flex; max-width: 48%; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
 .teacher-workshop-class-tabs button { padding: 8px 11px; border: 1px solid #dfe3ec; border-radius: 10px; color: #5f6980; background: #f8f9fc; font: inherit; font-size: 9px; font-weight: 800; cursor: pointer; }
 .teacher-workshop-class-tabs button.active { color: #fff; border-color: #de781f; background: #de781f; }
@@ -1416,6 +1431,9 @@ body {
 .teacher-workshop-dots i.current { color: #fff; background: #e18129; box-shadow: 0 0 0 3px #ffe4bd; }
 .teacher-workshop-dots i.missed { color: #a63e4c; background: #ffe0e4; }
 .teacher-workshop-dots i.locked { opacity: .48; }
+.teacher-workshop-row-actions { display: flex; align-items: center; gap: 6px; }
+.teacher-workshop-row-actions .manage-student-button { width: 34px; height: 34px; }
+.workshop-empty-roster { margin-top: 16px; }
 .teacher-workshop-curriculum-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 9px; }
 .teacher-workshop-curriculum-grid article { display: grid; grid-template-columns: 42px 1fr; gap: 11px; padding: 12px; border: 1px solid #e5e8ef; border-radius: 14px; background: #fafbfd; }
 .teacher-workshop-curriculum-grid article > span { display: grid; width: 40px; height: 40px; place-items: center; border-radius: 12px; background: #fff0db; font-size: 20px; }
@@ -1583,13 +1601,19 @@ body {
   .teacher-workshop-seal { display: none; }
   .teacher-workshop-roster, .teacher-workshop-curriculum { padding: 15px; }
   .teacher-workshop-roster-head { align-items: flex-start; flex-direction: column; }
+  .teacher-workshop-roster-actions { width: 100%; justify-content: flex-start; }
+  .teacher-workshop-roster-actions .button { flex: 1 1 150px; }
+  .workshop-student-form { grid-template-columns: 1fr; padding: 14px; }
+  .workshop-student-form .login-message { grid-column: 1; }
+  .workshop-student-form > .button { width: 100%; }
   .teacher-workshop-class-tabs { max-width: none; justify-content: flex-start; }
   .teacher-workshop-student { grid-template-columns: 38px 1fr auto; }
   .teacher-workshop-avatar { width: 36px; height: 36px; }
   .teacher-workshop-week { text-align: right; }
   .teacher-workshop-meter { grid-column: 2 / 4; }
   .teacher-workshop-dots { grid-column: 1 / -1; overflow-x: auto; }
-  .teacher-workshop-student > .button { grid-column: 1 / -1; width: 100%; }
+  .teacher-workshop-row-actions { grid-column: 1 / -1; width: 100%; }
+  .teacher-workshop-row-actions .button { flex: 1; }
   .teacher-workshop-curriculum-grid { grid-template-columns: 1fr; }
   .workshop-preview-lesson-grid, .workshop-preview-question-list, .workshop-preview-checks { grid-template-columns: 1fr; }
   .workshop-preview-dialog { max-height: 94vh; border-radius: 22px 22px 0 0; }
