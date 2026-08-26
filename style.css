@@ -630,7 +630,8 @@ a:focus-visible {
 .report-header p { margin: 0 0 5px; opacity: .8; font-size: 12px; font-weight: 900; letter-spacing: .1em; }
 .report-header h2 { margin: 0; }
 .report-body { padding: clamp(22px, 4vw, 34px); }
-.report-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+.report-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+.report-stat small { display: block; margin-top: 3px; color: var(--muted); font-size: 8px; }
 .report-stat { padding: 16px; border-radius: 15px; background: var(--primary-soft); }
 .report-stat span { display: block; color: var(--muted); font-size: 11px; font-weight: 700; }
 .report-stat strong { display: block; margin-top: 3px; font-size: 20px; }
@@ -1001,7 +1002,7 @@ body {
 .teacher-date span { color: #cbd2ff; font-size: 8px; font-weight: 900; letter-spacing: .16em; }
 .teacher-date strong { margin: 4px 0; font-size: 20px; }
 .teacher-date small { color: rgba(255,255,255,.67); }
-.teacher-stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 13px; margin: 18px 0; }
+.teacher-stat-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 13px; margin: 18px 0; }
 .teacher-stat { display: flex; align-items: center; gap: 13px; padding: 18px; border: 1px solid var(--line); border-radius: 18px; background: #fff; box-shadow: var(--shadow-small); }
 .teacher-stat > span { display: grid; width: 45px; height: 45px; flex: 0 0 45px; place-items: center; border-radius: 14px; background: var(--primary-soft); font-size: 22px; }
 .teacher-stat small, .teacher-stat strong, .teacher-stat p { display: block; margin: 0; }
@@ -1158,7 +1159,7 @@ body {
 .student-detail-identity p { margin: 2px 0 0; color: var(--muted); font-size: 9px; }
 .modal-close { display: grid; width: 38px; height: 38px; place-items: center; border: 1px solid var(--line); border-radius: 12px; background: #fff; font-size: 23px; cursor: pointer; }
 .student-detail-body { flex: 1; overflow-y: auto; padding: 22px 26px; }
-.student-detail-stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.student-detail-stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
 .student-detail-stats > div { padding: 15px; border: 1px solid var(--line); border-radius: 14px; background: #fff; }
 .student-detail-stats span, .student-detail-stats strong { display: block; }
 .student-detail-stats span { color: var(--muted); font-size: 9px; }
@@ -1292,6 +1293,154 @@ body {
 .module-preview-lead small { margin-top: 3px; color: var(--muted); font-size: 9px; }
 .module-preview-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 26px 22px; border-top: 1px solid var(--line); }
 
+/* Verimli Çalışma Atölyesi: ana Akademiden ayrı, öğrenciye özel 10 haftalık rota */
+.workshop-nav-item { color: #9a5311; background: linear-gradient(135deg, #fff8e9, #fff2dc); }
+.workshop-nav-item:hover, .workshop-nav-item.active { color: #fff; background: linear-gradient(135deg, #e77a21, #f3a63e); box-shadow: 0 10px 22px rgba(223,119,31,.22); }
+.workshop-home-card { display: grid; grid-template-columns: 112px minmax(0,1fr) auto; align-items: center; gap: 22px; margin: 18px 0; padding: 20px 22px; overflow: hidden; border: 1px solid #f4d39d; border-radius: 24px; background: linear-gradient(120deg,#fffaf0,#fff3df 64%,#ffead0); box-shadow: 0 13px 32px rgba(163,101,34,.08); }
+.workshop-home-mark { display: grid; width: 100px; height: 100px; place-items: center; align-content: center; border-radius: 25px; color: #fff; background: linear-gradient(145deg,#e77720,#f5ad43); box-shadow: 0 12px 24px rgba(218,111,27,.23); }
+.workshop-home-mark span { font-size: 38px; }
+.workshop-home-mark small { margin-top: 4px; font-size: 7px; font-weight: 900; letter-spacing: .1em; }
+.workshop-home-copy h3 { margin: 4px 0 6px; color: #182747; font-size: 23px; }
+.workshop-home-copy p { margin: 0; color: #6d614f; font-size: 12px; line-height: 1.65; }
+.workshop-home-progress { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+.workshop-home-progress > span { width: min(360px,60%); height: 7px; overflow: hidden; border-radius: 99px; background: #efdcc0; }
+.workshop-home-progress i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg,#e67821,#f3b64f); }
+.workshop-home-progress strong { color: #975112; font-size: 10px; }
+.workshop-home-button { color: #fff; border: 0; background: linear-gradient(135deg,#d96b18,#f09b32); box-shadow: 0 10px 22px rgba(219,108,25,.19); }
+
+.workshop-start-hero { display: grid; grid-template-columns: minmax(0,1.35fr) minmax(280px,.65fr); gap: 30px; min-height: 470px; padding: 48px; overflow: hidden; border-radius: 32px; color: #fff; background: radial-gradient(circle at 82% 18%,rgba(255,211,122,.28),transparent 29%),linear-gradient(130deg,#183a58,#0d6472 60%,#d37925 145%); box-shadow: 0 22px 55px rgba(16,54,72,.18); }
+.workshop-start-copy { align-self: center; }
+.workshop-start-copy .section-tag { color: #ffd98d; }
+.workshop-start-copy h2 { margin: 10px 0 16px; font-size: clamp(38px,5vw,62px); line-height: .98; }
+.workshop-start-copy h2 em { color: #ffc667; font-family: Georgia,serif; }
+.workshop-start-copy > p { max-width: 710px; margin: 0; color: rgba(255,255,255,.82); font-size: 15px; line-height: 1.75; }
+.workshop-start-features { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 22px 0; color: #d9fbf5; font-size: 10px; font-weight: 800; }
+.workshop-start-button { color: #173a55; background: #fff; box-shadow: 0 12px 25px rgba(0,0,0,.14); }
+.workshop-preview-empty { display: inline-flex; margin-top: 12px; padding: 11px 15px; border: 1px solid rgba(255,255,255,.22); border-radius: 12px; background: rgba(255,255,255,.1); font-size: 11px; }
+.workshop-start-map { display: grid; place-items: center; align-content: center; min-height: 340px; border: 1px solid rgba(255,255,255,.22); border-radius: 50% 50% 42% 58% / 47% 43% 57% 53%; background: rgba(255,255,255,.1); box-shadow: inset 0 0 0 20px rgba(255,255,255,.04); transform: rotate(3deg); }
+.workshop-start-map > span { color: #ffc867; font-size: 98px; font-weight: 950; line-height: .9; }
+.workshop-start-map > strong { margin-top: 5px; text-align: center; font-size: 15px; letter-spacing: .12em; }
+.workshop-start-map > div { display: flex; gap: 8px; margin-top: 24px; }
+.workshop-start-map i { display: grid; width: 38px; height: 38px; place-items: center; border-radius: 50%; background: rgba(255,255,255,.14); font-style: normal; }
+.workshop-program-preview { margin-top: 24px; padding: 25px; border: 1px solid var(--line); border-radius: 25px; background: #fff; }
+.workshop-preview-grid { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 10px; }
+.workshop-preview-grid article { display: grid; min-height: 115px; padding: 14px; border: 1px solid #e6eaf2; border-radius: 15px; background: #f9fafc; }
+.workshop-preview-grid article > span { font-size: 23px; }
+.workshop-preview-grid small { align-self: end; color: #d27220; font-size: 8px; font-weight: 900; letter-spacing: .08em; }
+.workshop-preview-grid strong { margin-top: 3px; color: #24304e; font-size: 11px; line-height: 1.35; }
+
+.workshop-dashboard-hero { display: grid; grid-template-columns: minmax(0,1fr) 165px; align-items: center; gap: 28px; padding: 36px 40px; border-radius: 30px; color: #fff; background: radial-gradient(circle at 88% 15%,rgba(255,210,124,.3),transparent 26%),linear-gradient(125deg,#123b56,#156a70 70%,#e48a29 150%); box-shadow: 0 20px 48px rgba(20,70,80,.16); }
+.workshop-dashboard-hero .section-tag { color: #ffda8e; }
+.workshop-dashboard-hero h2 { margin: 7px 0 9px; font-size: 38px; }
+.workshop-dashboard-hero p { max-width: 760px; margin: 0; color: rgba(255,255,255,.82); }
+.workshop-hero-stats { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+.workshop-hero-stats span { padding: 9px 12px; border: 1px solid rgba(255,255,255,.18); border-radius: 12px; background: rgba(255,255,255,.1); font-size: 9px; }
+.workshop-hero-stats b { font-size: 15px; }
+.workshop-compass { display: grid; width: 145px; height: 145px; place-items: center; align-content: center; border: 1px solid rgba(255,255,255,.24); border-radius: 50%; background: rgba(255,255,255,.1); box-shadow: inset 0 0 0 14px rgba(255,255,255,.05); font-size: 54px; }
+.workshop-compass small { margin-top: 6px; color: #ffe1a4; font-size: 9px; font-weight: 900; letter-spacing: .1em; }
+.workshop-timeline-panel { margin-top: 22px; padding: 26px; border: 1px solid var(--line); border-radius: 28px; background: #fff; }
+.workshop-timeline-heading { display: flex; align-items: end; justify-content: space-between; gap: 18px; margin-bottom: 16px; }
+.workshop-timeline-heading h3 { margin: 4px 0; font-size: 25px; }
+.workshop-timeline-heading p { margin: 0; color: var(--muted); }
+.workshop-timeline-heading > strong { color: #d47622; font-size: 30px; }
+.workshop-week-flow { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 15px; margin-top: 22px; }
+.workshop-module-card { position: relative; display: flex; min-height: 325px; padding: 20px; flex-direction: column; overflow: hidden; border: 1px solid #e4e8f0; border-radius: 22px; background: linear-gradient(150deg,#fff,#fbfcff); box-shadow: 0 10px 24px rgba(31,47,84,.06); }
+.workshop-module-card::after { position: absolute; right: -30px; bottom: -35px; width: 120px; height: 120px; border-radius: 50%; background: rgba(234,132,41,.06); content: ""; }
+.workshop-module-card.completed { border-color: #afdccc; background: linear-gradient(145deg,#f5fffb,#ecfaf5); }
+.workshop-module-card.progress, .workshop-module-card.available { border-color: #f0c27d; }
+.workshop-module-card.locked { color: #8c95a8; background: #f4f6f9; box-shadow: none; filter: grayscale(.45); }
+.workshop-module-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.workshop-week-number { display: grid; width: 36px; height: 36px; place-items: center; border-radius: 11px; color: #fff; background: linear-gradient(145deg,#de751f,#f0a140); font-weight: 900; }
+.status-pill.locked { color: #7b8496; background: #e5e8ee; }
+.status-pill.available { color: #a45b13; background: #fff0d2; }
+.workshop-module-icon { margin: 16px 0 10px; font-size: 37px; }
+.workshop-module-card > small { color: #bd6a20; font-size: 8px; font-weight: 900; letter-spacing: .06em; }
+.workshop-module-card h3 { margin: 6px 0; font-size: 18px; }
+.workshop-module-card p { margin: 0 0 15px; color: var(--muted); font-size: 11px; line-height: 1.55; }
+.workshop-card-progress { display: flex; align-items: center; gap: 8px; margin: auto 0 13px; }
+.workshop-card-progress > span { flex: 1; height: 6px; overflow: hidden; border-radius: 99px; background: #e8ebf1; }
+.workshop-card-progress i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg,#e47b24,#f1b448); }
+.workshop-card-progress small { color: #8a5b2d; font-size: 8px; font-weight: 800; }
+.workshop-module-card > .button { position: relative; z-index: 1; width: 100%; margin-top: 0; }
+
+.workshop-module-banner { display: grid; grid-template-columns: minmax(0,1fr) 150px; align-items: center; gap: 24px; padding: 36px 40px; border-radius: 30px; color: #fff; background: radial-gradient(circle at 88% 10%,rgba(255,208,109,.3),transparent 28%),linear-gradient(130deg,#133f5b,#16747a 70%,#e58a29 150%); box-shadow: 0 20px 44px rgba(18,73,81,.15); }
+.workshop-module-banner .section-tag { color: #ffda8c; }
+.workshop-module-banner h2 { margin: 8px 0; font-size: 37px; }
+.workshop-module-banner p { max-width: 760px; margin: 0; color: rgba(255,255,255,.82); }
+.workshop-banner-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.workshop-banner-meta span { padding: 7px 10px; border: 1px solid rgba(255,255,255,.19); border-radius: 999px; background: rgba(255,255,255,.08); font-size: 9px; }
+.workshop-progress-orbit { display: grid; width: 135px; height: 135px; place-items: center; align-content: center; border: 10px solid rgba(255,255,255,.13); border-radius: 50%; outline: 1px solid rgba(255,255,255,.22); }
+.workshop-progress-orbit strong { font-size: 30px; }
+.workshop-progress-orbit small { margin-top: 3px; font-size: 7px; font-weight: 900; letter-spacing: .08em; }
+.workshop-route { border-color: #e8e3d7; }
+.workshop-why { display: grid; grid-template-columns: 70px 1fr; gap: 20px; }
+.workshop-section-label { display: grid; width: 64px; height: 64px; place-items: center; border-radius: 20px; color: #fff; background: linear-gradient(145deg,#da711d,#f0a13e); font-size: 19px; font-weight: 950; }
+.workshop-why h3 { margin: 5px 0 9px; font-size: 25px; }
+.workshop-form-intro { margin: -5px 0 20px; color: var(--muted); }
+.workshop-next-locked { display: flex; min-height: 72px; padding: 14px 17px; flex-direction: column; justify-content: center; border: 1px dashed #d3d8e2; border-radius: 16px; color: #818a9e; text-align: right; background: #f6f7fa; }
+.workshop-next-locked span { font-size: 9px; }
+.workshop-next-locked strong { margin-top: 4px; font-size: 11px; }
+
+.teacher-workshop-button { color: #fff; border-color: rgba(255,213,132,.42); background: linear-gradient(135deg,#d96e1c,#ed9b36); box-shadow: 0 9px 20px rgba(205,99,20,.19); }
+.teacher-workshop-page { max-width: 1500px; margin: 0 auto; }
+.teacher-workshop-hero { display: flex; min-height: 260px; align-items: center; justify-content: space-between; gap: 28px; padding: 36px 42px; border-radius: 28px; color: #fff; background: radial-gradient(circle at 88% 14%,rgba(255,215,140,.28),transparent 25%),linear-gradient(125deg,#143d59,#137078 72%,#e58627 150%); box-shadow: 0 19px 48px rgba(17,63,77,.17); }
+.teacher-workshop-hero .button { margin-bottom: 18px; color: #fff; border-color: rgba(255,255,255,.28); background: rgba(255,255,255,.09); }
+.teacher-workshop-hero .section-tag { color: #ffd78b; }
+.teacher-workshop-hero h1 { margin: 7px 0 8px; font-size: 40px; }
+.teacher-workshop-hero p { max-width: 770px; margin: 0; color: rgba(255,255,255,.8); }
+.teacher-workshop-seal { display: grid; width: 155px; height: 155px; flex: 0 0 155px; place-items: center; align-content: center; border: 1px solid rgba(255,255,255,.22); border-radius: 50%; background: rgba(255,255,255,.1); box-shadow: inset 0 0 0 14px rgba(255,255,255,.05); }
+.teacher-workshop-seal span { color: #ffd078; font-size: 58px; font-weight: 950; line-height: .9; }
+.teacher-workshop-seal strong { font-size: 13px; letter-spacing: .13em; }
+.teacher-workshop-seal small { margin-top: 6px; color: rgba(255,255,255,.68); font-size: 7px; }
+.teacher-workshop-roster, .teacher-workshop-curriculum { margin-top: 18px; padding: 24px; border: 1px solid var(--line); border-radius: 24px; background: #fff; box-shadow: 0 10px 30px rgba(33,47,77,.05); }
+.teacher-workshop-roster-head { display: flex; align-items: end; justify-content: space-between; gap: 20px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+.teacher-workshop-roster-head h2 { margin: 4px 0; font-size: 25px; }
+.teacher-workshop-roster-head p { margin: 0; color: var(--muted); }
+.teacher-workshop-class-tabs { display: flex; max-width: 48%; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
+.teacher-workshop-class-tabs button { padding: 8px 11px; border: 1px solid #dfe3ec; border-radius: 10px; color: #5f6980; background: #f8f9fc; font: inherit; font-size: 9px; font-weight: 800; cursor: pointer; }
+.teacher-workshop-class-tabs button.active { color: #fff; border-color: #de781f; background: #de781f; }
+.teacher-workshop-student-list { display: grid; gap: 10px; margin-top: 16px; }
+.teacher-workshop-student { display: grid; grid-template-columns: 42px minmax(150px,1.1fr) 90px minmax(150px,.8fr) minmax(250px,1.4fr) auto; align-items: center; gap: 13px; padding: 13px; border: 1px solid #e5e8ef; border-radius: 16px; background: #fbfcfe; }
+.teacher-workshop-student.waiting { color: #7c8598; background: #f6f7f9; }
+.teacher-workshop-student.has-overdue { border-color: #f1c3c8; background: #fffafb; }
+.teacher-workshop-avatar { display: grid; width: 40px; height: 40px; place-items: center; border-radius: 13px; color: #a65b16; background: #fff0d8; font-size: 16px; font-weight: 900; }
+.teacher-workshop-student-name strong, .teacher-workshop-student-name small { display: block; }
+.teacher-workshop-student-name small, .teacher-workshop-week small, .teacher-workshop-meter small { color: var(--muted); font-size: 8px; }
+.teacher-workshop-week strong { display: block; margin-top: 2px; font-size: 15px; }
+.teacher-workshop-meter > span { display: block; height: 6px; overflow: hidden; border-radius: 99px; background: #e7eaf0; }
+.teacher-workshop-meter i { display: block; height: 100%; background: linear-gradient(90deg,#df7720,#f1af48); }
+.teacher-workshop-meter strong { display: block; margin-top: 4px; font-size: 9px; }
+.teacher-workshop-dots { display: grid; grid-template-columns: repeat(10,1fr); gap: 4px; }
+.teacher-workshop-dots i { display: grid; min-width: 23px; height: 23px; place-items: center; border-radius: 7px; color: #8b94a6; background: #ebedf2; font-style: normal; font-size: 7px; font-weight: 900; }
+.teacher-workshop-dots i.done { color: #fff; background: #2fa77f; }
+.teacher-workshop-dots i.current { color: #fff; background: #e18129; box-shadow: 0 0 0 3px #ffe4bd; }
+.teacher-workshop-dots i.missed { color: #a63e4c; background: #ffe0e4; }
+.teacher-workshop-dots i.locked { opacity: .48; }
+.teacher-workshop-curriculum-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 9px; }
+.teacher-workshop-curriculum-grid article { display: grid; grid-template-columns: 42px 1fr; gap: 11px; padding: 12px; border: 1px solid #e5e8ef; border-radius: 14px; background: #fafbfd; }
+.teacher-workshop-curriculum-grid article > span { display: grid; width: 40px; height: 40px; place-items: center; border-radius: 12px; background: #fff0db; font-size: 20px; }
+.teacher-workshop-curriculum-grid small { color: #c56b1d; font-size: 7px; font-weight: 900; }
+.teacher-workshop-curriculum-grid strong { display: block; margin: 2px 0; font-size: 11px; }
+.teacher-workshop-curriculum-grid p { margin: 0; color: var(--muted); font-size: 9px; }
+.table-workshop-progress { display: flex; align-items: center; gap: 7px; min-width: 130px; }
+.table-workshop-progress > span { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 9px; background: #fff0dc; }
+.table-workshop-progress strong, .table-workshop-progress small { display: block; white-space: nowrap; }
+.table-workshop-progress strong { font-size: 9px; }
+.table-workshop-progress small { color: var(--muted); font-size: 7px; }
+.table-workshop-progress.waiting { opacity: .58; filter: grayscale(.4); }
+.detail-workshop-route { display: grid; grid-template-columns: repeat(2,1fr); gap: 8px; margin-top: 13px; }
+.detail-workshop-week { display: grid; grid-template-columns: 38px 1fr; gap: 9px; padding: 10px; border: 1px solid #e4e8f0; border-radius: 13px; background: #fafbfe; }
+.detail-workshop-week > span { display: grid; width: 36px; height: 36px; place-items: center; border-radius: 10px; background: #edf0f6; }
+.detail-workshop-week small, .detail-workshop-week strong, .detail-workshop-week p { display: block; }
+.detail-workshop-week small { color: #b46620; font-size: 7px; font-weight: 800; }
+.detail-workshop-week strong { margin-top: 2px; font-size: 10px; }
+.detail-workshop-week p { margin: 2px 0 0; color: var(--muted); font-size: 8px; }
+.detail-workshop-week.done { border-color: #b8e0d1; background: #effaf6; }
+.detail-workshop-week.done > span { color: #fff; background: #2fa77f; }
+.detail-workshop-week.current { border-color: #efb96c; background: #fff8eb; box-shadow: inset 3px 0 #e2862c; }
+.detail-workshop-week.locked { opacity: .55; filter: grayscale(.5); }
+.workshop-answer-accordion { margin-top: 14px; }
+
 @media (max-width: 1240px) {
   .module-manager-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .stats-grid { grid-template-columns: repeat(3, 1fr); }
@@ -1300,6 +1449,10 @@ body {
   .teacher-stat-grid { grid-template-columns: repeat(2, 1fr); }
   .add-student-form { grid-template-columns: 1fr 1fr; }
   .add-student-form > div:first-child { grid-column: 1 / -1; }
+  .workshop-week-flow { grid-template-columns: repeat(2,1fr); }
+  .workshop-preview-grid { grid-template-columns: repeat(3,1fr); }
+  .teacher-workshop-student { grid-template-columns: 42px 1fr 90px 1fr auto; }
+  .teacher-workshop-dots { grid-column: 2 / 6; }
 }
 
 @media (max-width: 960px) {
@@ -1312,7 +1465,7 @@ body {
     inset: auto 10px 10px;
     z-index: 50;
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(6, 1fr);
     padding: 7px;
     border: 1px solid var(--line);
     border-radius: 20px;
@@ -1346,9 +1499,65 @@ body {
   .teacher-class-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
   .teacher-panel-title { grid-column: 1 / -1; }
   .teacher-mini-form { margin: 0; padding: 0 0 0 18px; border-top: 0; border-left: 1px solid var(--line); }
+  .workshop-home-card { grid-template-columns: 90px 1fr; }
+  .workshop-home-mark { width: 82px; height: 82px; }
+  .workshop-home-button { grid-column: 2; justify-self: start; }
+  .workshop-start-hero { grid-template-columns: 1fr; }
+  .workshop-start-map { display: none; }
+  .teacher-workshop-student { grid-template-columns: 42px 1fr 90px auto; }
+  .teacher-workshop-meter { grid-column: 2 / 4; }
+  .teacher-workshop-dots { grid-column: 2 / 5; }
 }
 
 @media (max-width: 700px) {
+  .mobile-nav { inset: auto 5px 6px; gap: 1px; padding: 5px; border-radius: 17px; }
+  .mobile-nav .nav-item { min-height: 55px; padding: 3px 1px; }
+  .mobile-nav .nav-item span { font-size: 18px; }
+  .mobile-nav .nav-item b { font-size: 7px; }
+  .workshop-home-card { grid-template-columns: 58px 1fr; gap: 12px; padding: 16px; }
+  .workshop-home-mark { width: 56px; height: 64px; border-radius: 16px; }
+  .workshop-home-mark span { font-size: 27px; }
+  .workshop-home-mark small { display: none; }
+  .workshop-home-copy h3 { font-size: 18px; }
+  .workshop-home-copy p { font-size: 10px; }
+  .workshop-home-progress { align-items: flex-start; flex-direction: column; gap: 5px; }
+  .workshop-home-progress > span { width: 100%; }
+  .workshop-home-button { grid-column: 1 / -1; width: 100%; }
+  .workshop-start-hero { min-height: 0; padding: 30px 22px; border-radius: 24px; }
+  .workshop-start-copy h2 { font-size: 38px; }
+  .workshop-start-copy > p { font-size: 12px; }
+  .workshop-start-features { display: grid; gap: 8px; }
+  .workshop-start-button { width: 100%; }
+  .workshop-program-preview { padding: 18px; }
+  .workshop-preview-grid { grid-template-columns: repeat(2,1fr); }
+  .workshop-dashboard-hero { grid-template-columns: 1fr; padding: 28px 21px; }
+  .workshop-dashboard-hero h2 { font-size: 30px; }
+  .workshop-compass { display: none; }
+  .workshop-hero-stats { display: grid; grid-template-columns: 1fr 1fr; }
+  .workshop-timeline-panel { padding: 17px; }
+  .workshop-timeline-heading { align-items: flex-start; flex-direction: column; }
+  .workshop-week-flow { grid-template-columns: 1fr; }
+  .workshop-module-card { min-height: 0; }
+  .workshop-module-banner { grid-template-columns: 1fr; padding: 28px 21px; }
+  .workshop-module-banner h2 { font-size: 29px; }
+  .workshop-progress-orbit { display: none; }
+  .workshop-why { grid-template-columns: 1fr; }
+  .workshop-section-label { width: 46px; height: 46px; border-radius: 14px; font-size: 14px; }
+  .workshop-next-locked { text-align: left; }
+  .teacher-workshop-hero { min-height: 0; align-items: flex-start; flex-direction: column; padding: 26px 20px; }
+  .teacher-workshop-hero h1 { font-size: 31px; }
+  .teacher-workshop-seal { display: none; }
+  .teacher-workshop-roster, .teacher-workshop-curriculum { padding: 15px; }
+  .teacher-workshop-roster-head { align-items: flex-start; flex-direction: column; }
+  .teacher-workshop-class-tabs { max-width: none; justify-content: flex-start; }
+  .teacher-workshop-student { grid-template-columns: 38px 1fr auto; }
+  .teacher-workshop-avatar { width: 36px; height: 36px; }
+  .teacher-workshop-week { text-align: right; }
+  .teacher-workshop-meter { grid-column: 2 / 4; }
+  .teacher-workshop-dots { grid-column: 1 / -1; overflow-x: auto; }
+  .teacher-workshop-student > .button { grid-column: 1 / -1; width: 100%; }
+  .teacher-workshop-curriculum-grid { grid-template-columns: 1fr; }
+  .detail-workshop-route { grid-template-columns: 1fr; }
   .next-action-card { grid-template-columns: 44px minmax(0, 1fr); gap: 10px; padding: 15px; }
   .next-action-icon { width: 43px; height: 43px; border-radius: 13px; font-size: 21px; }
   .next-action-copy h3 { font-size: 16px; }
@@ -1542,3 +1751,4 @@ body {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
+
