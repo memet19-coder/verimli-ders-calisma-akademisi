@@ -1422,6 +1422,40 @@ body {
 .teacher-workshop-curriculum-grid small { color: #c56b1d; font-size: 7px; font-weight: 900; }
 .teacher-workshop-curriculum-grid strong { display: block; margin: 2px 0; font-size: 11px; }
 .teacher-workshop-curriculum-grid p { margin: 0; color: var(--muted); font-size: 9px; }
+.teacher-workshop-curriculum-grid .button { margin-top: 10px; padding: 7px 10px; color: #a45b18; border-color: #edcfaa; background: #fffaf2; font-size: 8px; }
+.teacher-workshop-curriculum-grid .button:hover { color: #fff; border-color: #dc791f; background: #dc791f; }
+.workshop-preview-dialog { width: min(920px,100%); }
+.workshop-preview-header { background: linear-gradient(135deg,#fffaf0,#fff2df); }
+.workshop-preview-body { gap: 18px; }
+.workshop-preview-lead { background: linear-gradient(135deg,#fff6e6,#f6f9ff); }
+.workshop-preview-kicker { display: block; margin-bottom: 5px; color: #d2701d; font-size: 8px; font-weight: 900; letter-spacing: .11em; }
+.workshop-preview-lesson-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 9px; margin-top: 11px; }
+.workshop-preview-lesson-grid article { display: grid; grid-template-columns: 35px 1fr; gap: 8px; padding: 11px; border: 1px solid #e8e3d9; border-radius: 13px; background: #fffdfa; }
+.workshop-preview-lesson-grid article > span { font-size: 20px; }
+.workshop-preview-lesson-grid strong { font-size: 10px; }
+.workshop-preview-lesson-grid p { margin: 3px 0 0; font-size: 9px; }
+.workshop-preview-steps { display: grid; gap: 7px; counter-reset: workshop-preview-step; padding: 0!important; list-style: none; }
+.workshop-preview-steps li { display: grid; grid-template-columns: 27px 1fr; align-items: center; gap: 8px; }
+.workshop-preview-steps li::before { display: grid; width: 25px; height: 25px; place-items: center; border-radius: 8px; color: #fff; background: #df7a22; counter-increment: workshop-preview-step; content: counter(workshop-preview-step); font-size: 8px; font-weight: 900; }
+.workshop-preview-story { padding: 16px!important; border: 1px solid #f0d8b6!important; border-radius: 15px; background: #fffaf2; }
+.workshop-preview-story blockquote { margin: 11px 0 0; padding: 10px 12px; border-left: 3px solid #df7a22; color: #734514; background: #fff; font-size: 10px; line-height: 1.6; }
+.workshop-preview-task { padding: 16px!important; border: 1px solid #cfe4dd!important; border-radius: 15px; background: #f3fcf8; }
+.workshop-preview-question-list { display: grid; grid-template-columns: repeat(2,1fr); gap: 8px; margin-top: 10px; }
+.workshop-preview-question-list article { display: grid; grid-template-columns: 27px 1fr; gap: 8px; padding: 10px; border: 1px solid #e5e8ef; border-radius: 12px; background: #fafbfe; }
+.workshop-preview-question-list article > span { display: grid; width: 25px; height: 25px; place-items: center; border-radius: 8px; color: #a55b18; background: #fff0d9; font-size: 8px; font-weight: 900; }
+.workshop-preview-question-list strong, .workshop-preview-question-list small { display: block; }
+.workshop-preview-question-list strong { font-size: 9px; line-height: 1.45; }
+.workshop-preview-question-list small { margin-top: 3px; color: var(--muted); font-size: 8px; }
+.workshop-preview-checks { display: grid; grid-template-columns: repeat(2,1fr); gap: 7px; padding: 0!important; list-style: none; }
+.workshop-preview-checks li { display: flex; align-items: center; gap: 7px; padding: 9px 10px; border-radius: 10px; background: #f7f8fb; }
+.workshop-preview-checks li span { color: #df7a22; font-size: 15px; }
+.workshop-preview-quiz > div { display: grid; gap: 7px; margin-top: 10px; }
+.workshop-preview-quiz > div p { display: flex; align-items: center; gap: 8px; margin: 0; padding: 9px 11px; border: 1px solid #e5e8ef; border-radius: 11px; background: #fafbfe; }
+.workshop-preview-quiz > div p > b { display: grid; width: 25px; height: 25px; place-items: center; border-radius: 8px; background: #e9ecf5; }
+.workshop-preview-quiz > div p.correct { color: #126a4e; border-color: #bfe4d6; background: #effbf6; }
+.workshop-preview-quiz > div p.correct > b { color: #fff; background: #2fa77f; }
+.workshop-preview-quiz > div p span { margin-left: auto; color: #16805e; font-size: 8px; font-weight: 900; }
+.workshop-preview-quiz > small { display: block; margin-top: 10px; color: var(--muted); font-size: 9px; line-height: 1.6; }
 .table-workshop-progress { display: flex; align-items: center; gap: 7px; min-width: 130px; }
 .table-workshop-progress > span { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 9px; background: #fff0dc; }
 .table-workshop-progress strong, .table-workshop-progress small { display: block; white-space: nowrap; }
@@ -1557,6 +1591,8 @@ body {
   .teacher-workshop-dots { grid-column: 1 / -1; overflow-x: auto; }
   .teacher-workshop-student > .button { grid-column: 1 / -1; width: 100%; }
   .teacher-workshop-curriculum-grid { grid-template-columns: 1fr; }
+  .workshop-preview-lesson-grid, .workshop-preview-question-list, .workshop-preview-checks { grid-template-columns: 1fr; }
+  .workshop-preview-dialog { max-height: 94vh; border-radius: 22px 22px 0 0; }
   .detail-workshop-route { grid-template-columns: 1fr; }
   .next-action-card { grid-template-columns: 44px minmax(0, 1fr); gap: 10px; padding: 15px; }
   .next-action-icon { width: 43px; height: 43px; border-radius: 13px; font-size: 21px; }
