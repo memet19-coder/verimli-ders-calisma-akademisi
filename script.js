@@ -48,6 +48,7 @@ const STORAGE_KEYS = {
 };
 
 const DAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
+const WORKSHOP_CLASS_NAME = "Verimli Çalışma Atölyesi • Özel Ders";
 const PREVIEW_BLOCKED_ACTIONS = new Set([
   "quiz-option", "activity-choice", "activity-confidence", "activity-day",
   "save-activity-reflection", "select-reading-day", "visit-reading-workshop", "complete-daily-reading", "save-draft", "add-plan-task", "remove-plan-task",
@@ -1190,6 +1191,11 @@ function renderStudentOnboarding() {
 }
 
 function navigate(page, options = {}) {
+  if (page === "workshop" && !studentHasWorkshopAccess()) {
+    showToast("Verimli Çalışma Atölyesi yalnızca öğretmenin bu programa ayrıca eklediği öğrencilere açıktır.", "error");
+    page = "home";
+    options = {};
+  }
   state.page = page;
   state.activeModule = options.moduleId || null;
   state.activeWorkshopModule = options.workshopModuleId || null;
@@ -1206,6 +1212,17 @@ function showWorkspace(name) {
   studentApp.classList.toggle("is-hidden", name !== "student");
   studentMobileNav.classList.toggle("is-hidden", name !== "student");
   teacherApp.classList.toggle("is-hidden", name !== "teacher");
+}
+
+function studentHasWorkshopAccess() {
+  if (studentPreviewMode) return isWorkshopClass(previewStudentRecord?.classes || null);
+  return cloudSession?.role === "student" && isWorkshopClass({ name: cloudSession.className, code_hint: cloudSession.classCode });
+}
+
+function updateStudentProgramVisibility() {
+  const allowed = studentHasWorkshopAccess();
+  document.querySelectorAll(".workshop-nav-item").forEach(item => { item.hidden = !allowed; });
+  return allowed;
 }
 
 function setLoginMessage(id, message, type = "error") {
@@ -1444,7 +1461,7 @@ async function loadTeacherStudentPreview(studentId) {
   main.innerHTML = `<div class="teacher-loading preview-loading"><span class="button-spinner dark"></span><strong>Öğrenci görünümü hazırlanıyor…</strong></div>`;
   const { data, error } = await cloudClient
     .from("students")
-    .select("id,class_id,name,code_hint,active,student_progress(payload,completed_count,plan_percent,last_activity,updated_at)")
+    .select("id,class_id,name,code_hint,active,classes(name,code_hint),student_progress(payload,completed_count,plan_percent,last_activity,updated_at)")
     .eq("id", studentId)
     .eq("active", true)
     .single();
@@ -1648,6 +1665,11 @@ async function initializeApplication() {
 }
 
 function renderCurrentPage() {
+  const workshopAllowed = updateStudentProgramVisibility();
+  if (!workshopAllowed && state.page === "workshop") {
+    state.page = "home";
+    state.activeWorkshopModule = null;
+  }
   const titles = { home: "Ana Sayfa", modules: "Modüller", workshop: "Verimli Çalışma Atölyesi", plan: "Haftalık Planım", report: "Gelişim Raporum", badges: "Başarı Rozetlerim", tips: "Öğretmen Tavsiyeleri", settings: "Ayarlar" };
   pageTitle.textContent = state.activeModule
     ? `${state.activeModule}. Hafta`
@@ -1714,7 +1736,7 @@ function renderHome() {
 
     ${renderNextStudentAction()}
 
-    ${renderWorkshopHomeCard()}
+    ${studentHasWorkshopAccess() ? renderWorkshopHomeCard() : ""}
 
     <section class="home-reading-card ${readToday ? "done" : ""}">
       <div class="home-reading-icon">${readToday ? "✓" : "5"}<small>PARAGRAF</small></div>
@@ -2367,7 +2389,13 @@ function buildReportText() {
   const lastAnswer = getLastAnswerText();
   const completedNames = completed.length ? completed.map(id => `${id}. ${MODULES.find(item => item.id === id).title}`).join(", ") : "Henüz tamamlanan modül yok.";
   const workshopCompleted = getWorkshopCompletedIds();
-  return `VERİMLİ DERS ÇALIŞMA AKADEMİSİ\nGELİŞİM RAPORU\n\nÖğrenci: ${name}\nTarih: ${new Intl.DateTimeFormat("tr-TR").format(new Date())}\nTamamlanan modül: ${completed.length} / ${activeModuleCount}\nÖzel ders atölyesi: ${workshopCompleted.length} / 10${state.workshop.startedAt ? ` • ${getWorkshopWeekNumber()}. haftada` : " • Henüz başlamadı"}\nTamamlanan haftalık görev: ${plan.completed} / ${plan.planned}\nHaftalık plan ilerlemesi: %${plan.percent}\nEn son yapılan uygulama: ${lastCompleted ? `${lastCompleted.id}. ${lastCompleted.title}` : "Henüz yok"}\n\nTamamlanan modüller:\n${completedNames}\n\nTamamlanan özel ders haftaları:\n${workshopCompleted.length ? workshopCompleted.map(id => `${id}. ${WORKSHOP_MODULES.find(module => module.id === id)?.title || ""}`).join(", ") : "Henüz yok"}\n\nSon cevap (${lastAnswer.title}):\n${lastAnswer.text}\n\nÖğrenciye öneri:\n${getAutomaticSuggestion()}`;
+  const workshopSummary = studentHasWorkshopAccess()
+    ? `\nÖzel ders atölyesi: ${workshopCompleted.length} / 10${state.workshop.startedAt ? ` • ${getWorkshopWeekNumber()}. haftada` : " • Henüz başlamadı"}`
+    : "";
+  const workshopDetails = studentHasWorkshopAccess()
+    ? `\n\nTamamlanan özel ders haftaları:\n${workshopCompleted.length ? workshopCompleted.map(id => `${id}. ${WORKSHOP_MODULES.find(module => module.id === id)?.title || ""}`).join(", ") : "Henüz yok"}`
+    : "";
+  return `VERİMLİ DERS ÇALIŞMA AKADEMİSİ\nGELİŞİM RAPORU\n\nÖğrenci: ${name}\nTarih: ${new Intl.DateTimeFormat("tr-TR").format(new Date())}\nTamamlanan modül: ${completed.length} / ${activeModuleCount}${workshopSummary}\nTamamlanan haftalık görev: ${plan.completed} / ${plan.planned}\nHaftalık plan ilerlemesi: %${plan.percent}\nEn son yapılan uygulama: ${lastCompleted ? `${lastCompleted.id}. ${lastCompleted.title}` : "Henüz yok"}\n\nTamamlanan modüller:\n${completedNames}${workshopDetails}\n\nSon cevap (${lastAnswer.title}):\n${lastAnswer.text}\n\nÖğrenciye öneri:\n${getAutomaticSuggestion()}`;
 }
 
 function renderReport() {
@@ -2384,7 +2412,7 @@ function renderReport() {
       <header class="report-header"><p>VERİMLİ DERS ÇALIŞMA AKADEMİSİ</p><h2>${escapeHTML(name)} • Gelişim Raporu</h2></header>
       <div class="report-body">
         ${!state.settings.studentName.trim() ? `<div class="empty-state" style="margin-bottom:20px"><span>👤</span>Raporunda adının görünmesi için <button class="button secondary small" type="button" data-page="settings">Ayarlar'dan adını ekle</button></div>` : ""}
-        <div class="report-stats"><div class="report-stat"><span>Tamamlanan modül</span><strong>${completed.length} / ${activeModuleCount}</strong></div><div class="report-stat"><span>Özel ders atölyesi</span><strong>${workshopCompleted.length} / 10</strong><small>${state.workshop.startedAt ? `${getWorkshopWeekNumber()}. program haftası` : "Henüz başlamadı"}</small></div><div class="report-stat"><span>Haftalık görev</span><strong>${plan.completed} / ${plan.planned}</strong></div><div class="report-stat"><span>Plan ilerlemesi</span><strong>%${plan.percent}</strong></div></div>
+        <div class="report-stats"><div class="report-stat"><span>Tamamlanan modül</span><strong>${completed.length} / ${activeModuleCount}</strong></div>${studentHasWorkshopAccess() ? `<div class="report-stat"><span>Özel ders atölyesi</span><strong>${workshopCompleted.length} / 10</strong><small>${state.workshop.startedAt ? `${getWorkshopWeekNumber()}. program haftası` : "Henüz başlamadı"}</small></div>` : ""}<div class="report-stat"><span>Haftalık görev</span><strong>${plan.completed} / ${plan.planned}</strong></div><div class="report-stat"><span>Plan ilerlemesi</span><strong>%${plan.percent}</strong></div></div>
         <div class="report-row"><span>EN SON YAPILAN UYGULAMA</span><p>${lastCompleted ? `${lastCompleted.icon} ${lastCompleted.id}. ${lastCompleted.title} • ${formatDate(state.completed[lastCompleted.id].completedAt)}` : "Henüz bir modül tamamlanmadı."}</p></div>
         <div class="report-row"><span>ÖĞRENCİNİN SON CEVABI • ${escapeHTML(lastAnswer.title)}</span><p>${escapeHTML(lastAnswer.text)}</p></div>
         <div class="recommendation"><strong>💡 Sana özel küçük öneri</strong><p>${getAutomaticSuggestion()}</p></div>
@@ -2472,6 +2500,36 @@ function getStudentProgress(student) {
   return value || { payload: {}, completed_count: 0, plan_percent: 0, last_activity: null };
 }
 
+function isWorkshopClass(classRecord) {
+  const record = Array.isArray(classRecord) ? classRecord[0] : classRecord;
+  return Boolean(record && (
+    record.name === WORKSHOP_CLASS_NAME ||
+    (record.name?.startsWith("Verimli Çalışma Atölyesi") && record.code_hint?.startsWith("ATOLYE"))
+  ));
+}
+
+function getWorkshopClass() {
+  return teacherStore.classes.find(isWorkshopClass) || null;
+}
+
+function getWorkshopStudents() {
+  const workshopClass = getWorkshopClass();
+  return workshopClass ? teacherStore.students.filter(student => student.class_id === workshopClass.id) : [];
+}
+
+function isWorkshopStudentRecord(student) {
+  return isWorkshopClass(teacherStore.classes.find(item => item.id === student?.class_id));
+}
+
+function getAcademyClasses() {
+  return teacherStore.classes.filter(item => !isWorkshopClass(item));
+}
+
+function getAcademyStudents() {
+  const classIds = new Set(getAcademyClasses().map(item => item.id));
+  return teacherStore.students.filter(student => classIds.has(student.class_id));
+}
+
 async function loadTeacherData() {
   teacherContent.innerHTML = `<div class="teacher-loading"><span class="button-spinner dark"></span><strong>Sınıf verileri hazırlanıyor…</strong></div>`;
   const [classesResult, studentsResult] = await Promise.all([
@@ -2484,8 +2542,9 @@ async function loadTeacherData() {
   }
   teacherStore.classes = classesResult.data || [];
   teacherStore.students = studentsResult.data || [];
-  if (!teacherStore.activeClassId || !teacherStore.classes.some(item => item.id === teacherStore.activeClassId)) {
-    teacherStore.activeClassId = teacherStore.classes[0]?.id || null;
+  const academyClasses = getAcademyClasses();
+  if (!teacherStore.activeClassId || !academyClasses.some(item => item.id === teacherStore.activeClassId)) {
+    teacherStore.activeClassId = academyClasses[0]?.id || null;
   }
   if (teacherPanelView === "modules") renderTeacherModuleManager();
   else if (teacherPanelView === "workshop") renderTeacherWorkshopTracking();
@@ -2687,8 +2746,8 @@ function inspectTeacherWorkshopModule(moduleId) {
 }
 
 function renderTeacherWorkshopTracking() {
-  const activeClass = teacherStore.classes.find(item => item.id === teacherStore.activeClassId) || null;
-  const visibleStudents = activeClass ? teacherStore.students.filter(item => item.class_id === activeClass.id) : [];
+  const workshopClass = getWorkshopClass();
+  const visibleStudents = getWorkshopStudents();
   const started = visibleStudents.filter(student => getRemoteWorkshop(student).startedAt);
   const totalCompleted = started.reduce((sum, student) => sum + getWorkshopCompletedIds(getRemoteWorkshop(student)).length, 0);
   const average = started.length ? (totalCompleted / started.length).toFixed(1) : "0";
@@ -2700,8 +2759,15 @@ function renderTeacherWorkshopTracking() {
   }).length;
 
   teacherContent.innerHTML = `<section class="teacher-workshop-page"><div class="teacher-workshop-hero"><div><button class="button ghost small" type="button" data-action="back-teacher-dashboard">← Öğretmen paneli</button><span class="section-tag">SÜREKLİ ÖZEL DERS PROGRAMI</span><h1>Verimli Çalışma Atölyesi</h1><p>Her öğrencinin başlangıç tarihi, açık haftası, cevapları ve tamamlanma durumu birbirinden bağımsız ilerler.</p></div><div class="teacher-workshop-seal"><span>10</span><strong>HAFTA</strong><small>PDF DERS AKIŞI</small></div></div>
-    <div class="teacher-stat-grid teacher-workshop-stats">${teacherStat("👥", "Seçili sınıf", visibleStudents.length, "Toplam öğrenci")}${teacherStat("🧭", "Atölyeye başlayan", started.length, "Kendi takvimi oluştu")}${teacherStat("📈", "Ortalama ilerleme", `${average} / 10`, "Tamamlanan hafta")}${teacherStat("🏆", "Programı bitiren", finished, `${activeThisWeek} öğrenci bu hafta aktif`)}</div>
-    <section class="teacher-workshop-roster"><div class="teacher-workshop-roster-head"><div><span class="section-tag">SINIF SEÇİMİ</span><h2>${activeClass ? escapeHTML(activeClass.name) : "Bir sınıf seçin"}</h2><p>Öğrenciyi sınıfa eklemeniz yeterlidir. Öğrenci Atölye’yi ilk açtığında kendine özel 10 haftalık takvimi başlar.</p></div><div class="teacher-workshop-class-tabs">${teacherStore.classes.map(item => `<button class="${item.id === teacherStore.activeClassId ? "active" : ""}" type="button" data-action="select-teacher-class" data-class-id="${item.id}">${escapeHTML(item.name)}</button>`).join("")}</div></div>
+    <div class="teacher-stat-grid teacher-workshop-stats">${teacherStat("👥", "Atölye öğrencisi", visibleStudents.length, "Yalnızca buradan eklenenler")}${teacherStat("🧭", "Atölyeye başlayan", started.length, "Kendi takvimi oluştu")}${teacherStat("📈", "Ortalama ilerleme", `${average} / 10`, "Tamamlanan hafta")}${teacherStat("🏆", "Programı bitiren", finished, `${activeThisWeek} öğrenci bu hafta aktif`)}</div>
+    <section class="teacher-workshop-roster"><div class="teacher-workshop-roster-head"><div><span class="section-tag">AYRI ÖĞRENCİ LİSTESİ</span><h2>Atölye öğrencilerim</h2><p>Kamp ve sınıf öğrencileri bu listeye otomatik gelmez. Yalnızca bu bölümden eklediğiniz özel ders öğrencileri görünür.</p></div><div class="teacher-workshop-roster-actions">${workshopClass ? `<button class="button backup-class small" type="button" data-action="backup-class" data-class-id="${workshopClass.id}">💾 Atölyeyi Yedekle</button><button class="button secondary small" type="button" data-action="copy-class-code" data-code="${escapeHTML(workshopClass.code_hint)}">📋 Giriş Kodunu Kopyala</button>` : ""}<button class="button primary small" type="button" data-action="toggle-workshop-add-student">＋ Atölye Öğrencisi Ekle</button></div></div>
+      <form id="workshop-add-student-form" class="workshop-student-form" ${workshopClass ? "hidden" : ""} novalidate>
+        <div class="workshop-student-form-heading"><span>🧭</span><div><small>YENİ ÖZEL DERS KAYDI</small><h3>Atölye öğrencisi oluştur</h3><p>Bu kayıt kamp sınıflarından tamamen ayrı tutulur.</p></div></div>
+        ${!workshopClass ? `<div class="field-group"><label for="workshop-class-code">Atölye ortak giriş kodu</label><div class="code-input"><input id="workshop-class-code" name="classCode" maxlength="20" placeholder="Örnek: ATOLYE-2026"><button type="button" data-action="generate-workshop-class-code">Üret</button></div><small>Bu kodu yalnızca ilk öğrencide belirlersiniz. Tüm atölye öğrencileri aynı ortak kodu kullanır.</small></div>` : `<div class="workshop-existing-code"><small>ATÖLYE ORTAK GİRİŞ KODU</small><strong>${escapeHTML(workshopClass.code_hint)}</strong></div>`}
+        <div class="field-group"><label for="workshop-student-name">Öğrenci adı</label><input id="workshop-student-name" name="studentName" maxlength="80" placeholder="Ad Soyad"></div>
+        <div class="field-group"><label for="workshop-student-code">Öğrenciye özel kod</label><div class="code-input"><input id="workshop-student-code" name="studentCode" maxlength="20" placeholder="En az 6 karakter"><button type="button" data-action="generate-workshop-student-code">Üret</button></div></div>
+        <div class="login-message" data-form-message role="alert"></div><button class="button primary" type="submit">Öğrenciyi Atölyeye Ekle</button>
+      </form>
       ${visibleStudents.length ? `<div class="teacher-workshop-student-list">${visibleStudents.map(student => {
         const workshop = getRemoteWorkshop(student);
         const completed = getWorkshopCompletedIds(workshop).length;
@@ -2709,23 +2775,26 @@ function renderTeacherWorkshopTracking() {
         const overdue = workshop.startedAt ? WORKSHOP_MODULES.filter(module => module.id < week && !workshop.completed[module.id]) : [];
         const startedAt = workshop.startedAt ? formatDate(workshop.startedAt) : "—";
         const last = workshop.lastActivity ? formatRelativeDate(workshop.lastActivity) : "Henüz çalışma yok";
-        return `<article class="teacher-workshop-student ${workshop.startedAt ? "started" : "waiting"} ${overdue.length ? "has-overdue" : ""}"><span class="teacher-workshop-avatar">${escapeHTML(student.name.charAt(0).toLocaleUpperCase("tr-TR"))}</span><div class="teacher-workshop-student-name"><strong>${escapeHTML(student.name)}</strong><small>${workshop.startedAt ? `${startedAt} tarihinde başladı${overdue.length ? ` • ⚠ ${overdue.length} geçmiş hafta eksik` : ""}` : "Atölyeyi henüz başlatmadı"}</small></div><div class="teacher-workshop-week"><small>PROGRAM HAFTASI</small><strong>${workshop.startedAt ? `${week} / 10` : "—"}</strong></div><div class="teacher-workshop-meter"><span><i style="width:${completed * 10}%"></i></span><strong>${completed}/10 tamamlandı</strong><small>${last}</small></div><div class="teacher-workshop-dots">${WORKSHOP_MODULES.map(module => `<i class="${workshop.completed[module.id] ? "done" : module.id === week && workshop.startedAt ? "current" : module.id < week && workshop.startedAt ? "missed" : module.id > week || !workshop.startedAt ? "locked" : ""}" title="${module.id}. ${escapeHTML(module.title)}">${workshop.completed[module.id] ? "✓" : module.id}</i>`).join("")}</div><button class="button ghost small" type="button" data-action="view-student" data-student-id="${student.id}">Gelişim dosyası →</button></article>`;
-      }).join("")}</div>` : `<div class="teacher-empty-class compact"><span>👋</span><h2>Bu sınıfta öğrenci yok</h2><p>Öğretmen ana panelinden yeni öğrenci ekleyebilirsiniz.</p></div>`}
+        return `<article class="teacher-workshop-student ${workshop.startedAt ? "started" : "waiting"} ${overdue.length ? "has-overdue" : ""}"><span class="teacher-workshop-avatar">${escapeHTML(student.name.charAt(0).toLocaleUpperCase("tr-TR"))}</span><div class="teacher-workshop-student-name"><strong>${escapeHTML(student.name)}</strong><small>${workshop.startedAt ? `${startedAt} tarihinde başladı${overdue.length ? ` • ⚠ ${overdue.length} geçmiş hafta eksik` : ""}` : "Atölyeyi henüz başlatmadı"}</small></div><div class="teacher-workshop-week"><small>PROGRAM HAFTASI</small><strong>${workshop.startedAt ? `${week} / 10` : "—"}</strong></div><div class="teacher-workshop-meter"><span><i style="width:${completed * 10}%"></i></span><strong>${completed}/10 tamamlandı</strong><small>${last}</small></div><div class="teacher-workshop-dots">${WORKSHOP_MODULES.map(module => `<i class="${workshop.completed[module.id] ? "done" : module.id === week && workshop.startedAt ? "current" : module.id < week && workshop.startedAt ? "missed" : module.id > week || !workshop.startedAt ? "locked" : ""}" title="${module.id}. ${escapeHTML(module.title)}">${workshop.completed[module.id] ? "✓" : module.id}</i>`).join("")}</div><div class="teacher-workshop-row-actions"><button class="button ghost small" type="button" data-action="view-student" data-student-id="${student.id}">Gelişim →</button><button class="manage-student-button" type="button" data-action="manage-student" data-student-id="${student.id}" aria-label="${escapeHTML(student.name)} adlı atölye öğrencisini yönet" title="Öğrenciyi düzenle">•••</button></div></article>`;
+      }).join("")}</div>` : `<div class="teacher-empty-class compact workshop-empty-roster"><span>🧭</span><h2>Henüz atölye öğrencisi eklenmedi</h2><p>Yukarıdaki formdan ilk özel ders öğrencinizi ekleyin. Kamp öğrencileri burada gösterilmez.</p></div>`}
     </section>
     <section class="teacher-workshop-curriculum"><div class="section-heading"><div><span class="section-tag">10 HAFTALIK DERS AKIŞI</span><h2>Program içerikleri</h2><p>Bir haftanın anlatımını, anekdotunu, uygulamasını ve öğrenci sorularını görmek için karttaki <strong>İçeriği İncele</strong> düğmesine basın.</p></div></div><div class="teacher-workshop-curriculum-grid">${WORKSHOP_MODULES.map(module => `<article><span>${module.icon}</span><div><small>${module.id}. HAFTA</small><strong>${module.title}</strong><p>${module.short}</p><button class="button ghost small" type="button" data-action="inspect-workshop-module" data-workshop-module-id="${module.id}" aria-label="${module.id}. hafta ${escapeHTML(module.title)} içeriğini incele">İçeriği İncele →</button></div></article>`).join("")}</div></section></section>`;
 }
 
 function renderTeacherDashboard() {
-  const activeClass = teacherStore.classes.find(item => item.id === teacherStore.activeClassId) || null;
-  const visibleStudents = activeClass ? teacherStore.students.filter(item => item.class_id === activeClass.id) : [];
-  const allProgress = teacherStore.students.map(getStudentProgress);
+  const academyClasses = getAcademyClasses();
+  const academyStudents = getAcademyStudents();
+  const activeClass = academyClasses.find(item => item.id === teacherStore.activeClassId) || null;
+  const visibleStudents = activeClass ? academyStudents.filter(item => item.class_id === activeClass.id) : [];
+  const allProgress = academyStudents.map(getStudentProgress);
   const todayKey = localDateKey();
   const loggedInToday = allProgress.filter(item => Boolean(item.payload?.attendance?.[todayKey])).length;
   const readToday = allProgress.filter(item => isReadingEntryCompleted(getReadingEntryForDate(item.payload || {}, todayKey))).length;
   const averageModules = allProgress.length ? (allProgress.reduce((sum, item) => sum + Number(item.completed_count || 0), 0) / allProgress.length).toFixed(1) : "0";
   const averagePlan = allProgress.length ? Math.round(allProgress.reduce((sum, item) => sum + Number(item.plan_percent || 0), 0) / allProgress.length) : 0;
-  const workshopStudents = allProgress.filter(item => item.payload?.workshop?.startedAt);
-  const averageWorkshop = workshopStudents.length ? (workshopStudents.reduce((sum, item) => sum + getWorkshopCompletedIds(item.payload.workshop).length, 0) / workshopStudents.length).toFixed(1) : "0";
+  const workshopStudentRecords = getWorkshopStudents();
+  const workshopStartedProgress = workshopStudentRecords.map(getStudentProgress).filter(item => item.payload?.workshop?.startedAt);
+  const averageWorkshop = workshopStartedProgress.length ? (workshopStartedProgress.reduce((sum, item) => sum + getWorkshopCompletedIds(item.payload.workshop).length, 0) / workshopStartedProgress.length).toFixed(1) : "0";
 
   teacherContent.innerHTML = `
     <section class="teacher-welcome">
@@ -2735,10 +2804,10 @@ function renderTeacherDashboard() {
       </div>
     </section>
     <div class="teacher-stat-grid">
-      ${teacherStat("👥", "Toplam öğrenci", teacherStore.students.length, "Kayıtlı öğrenci")}
+      ${teacherStat("👥", "Akademi öğrencisi", academyStudents.length, "Kamp ve sınıf kayıtları")}
       ${teacherStat("📖", "Bugünkü takip", `${loggedInToday} / ${readToday}`, "Giriş / 5 paragraf")}
       ${teacherStat("📚", "Ortalama modül", `${averageModules} / ${getActiveModules().length}`, "Sınıf ortalaması")}
-      ${teacherStat("🧭", "Özel ders atölyesi", `${averageWorkshop} / 10`, `${workshopStudents.length} öğrenci başladı`)}
+      ${teacherStat("🧭", "Özel ders atölyesi", `${averageWorkshop} / 10`, `${workshopStudentRecords.length} ayrı öğrenci`)}
       ${teacherStat("🗓️", "Plan ortalaması", `%${averagePlan}`, "Haftalık tamamlama")}
     </div>
 
@@ -2746,9 +2815,9 @@ function renderTeacherDashboard() {
 
     <div class="teacher-dashboard-grid">
       <aside class="teacher-class-panel">
-        <div class="teacher-panel-title"><div><span class="section-tag">SINIFLARIM</span><h2>Sınıflar</h2></div><span class="count-badge">${teacherStore.classes.length}</span></div>
-        <div class="class-list">${teacherStore.classes.length ? teacherStore.classes.map(item => {
-          const count = teacherStore.students.filter(student => student.class_id === item.id).length;
+        <div class="teacher-panel-title"><div><span class="section-tag">SINIFLARIM</span><h2>Sınıflar</h2></div><span class="count-badge">${academyClasses.length}</span></div>
+        <div class="class-list">${academyClasses.length ? academyClasses.map(item => {
+          const count = academyStudents.filter(student => student.class_id === item.id).length;
           return `<button class="class-list-item ${item.id === teacherStore.activeClassId ? "active" : ""}" type="button" data-action="select-teacher-class" data-class-id="${item.id}"><span>📘</span><div><strong>${escapeHTML(item.name)}</strong><small>${count} öğrenci • ${escapeHTML(item.code_hint)}</small></div><b>›</b></button>`;
         }).join("") : `<div class="empty-mini">Henüz sınıf oluşturmadınız.</div>`}</div>
         <form id="create-class-form" class="teacher-mini-form" novalidate><h3>＋ Yeni sınıf oluştur</h3><input name="className" maxlength="80" placeholder="Sınıf adı: 7/A Türkçe" aria-label="Sınıf adı"><input name="classCode" maxlength="20" placeholder="Sınıf kodu: TURKCE7A" aria-label="Sınıf kodu"><div class="login-message" data-form-message></div><button class="button primary small" type="submit">Sınıfı Oluştur</button></form>
@@ -2946,7 +3015,8 @@ function getStudentReportMetrics(student) {
   }, { planned: 0, done: 0 });
   const totalLogins = Object.keys(payload.attendance || {}).length;
   const totalParagraphs = readingEntries.reduce((sum, [, entry]) => sum + Number(entry?.paragraphs || 5), 0);
-  const workshop = normalizeWorkshopState(payload.workshop);
+  const isWorkshopStudent = isWorkshopStudentRecord(student);
+  const workshop = isWorkshopStudent ? normalizeWorkshopState(payload.workshop) : createEmptyWorkshopState();
   const workshopCompletedIds = getWorkshopCompletedIds(workshop);
   return {
     progress,
@@ -2960,6 +3030,7 @@ function getStudentReportMetrics(student) {
     readingCount: readingEntries.length,
     lateReadingCount: lateReadings.length,
     totalParagraphs,
+    isWorkshopStudent,
     workshop,
     workshopCompletedIds,
     workshopWeek: getWorkshopWeekNumber(workshop)
@@ -3031,7 +3102,7 @@ function openStudentPdfReport(studentId) {
   reportWindow.document.open();
   reportWindow.document.write(`<!doctype html><html lang="tr"><head><meta charset="utf-8"><title>${escapeHTML(student.name)} • Akademi PDF Raporu</title><style>
     :root{color-scheme:light}*{box-sizing:border-box}body{margin:0;padding:32px;color:#1e2949;background:#f5f7fc;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.5}.report{max-width:1050px;margin:0 auto;background:#fff;border:1px solid #dfe4f1;border-radius:22px;overflow:hidden;box-shadow:0 12px 35px rgba(36,44,80,.12)}.report-head{padding:30px 34px;color:#fff;background:linear-gradient(125deg,#3548b5,#6475ec)}.brand{font-size:11px;font-weight:800;letter-spacing:.14em;opacity:.85}.report-head h1{margin:8px 0 4px;font-size:29px}.report-head p{margin:0;opacity:.86}.body{padding:26px 34px}.meta{display:flex;justify-content:space-between;gap:16px;padding-bottom:18px;color:#66718b;border-bottom:1px solid #e6e9f2}.stats{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin:20px 0}.stat{padding:13px;border:1px solid #e5e8f2;border-radius:13px;background:#f8f9fd}.stat span{display:block;color:#69738b;font-size:10px}.stat strong{display:block;margin-top:3px;color:#1f2c53;font-size:20px}.section{margin-top:24px}.section h2{margin:0 0 10px;font-size:17px}.section p{margin:4px 0;color:#5d6882}.pill{display:inline-block;padding:5px 9px;border-radius:999px;color:#275b4b;background:#e3f6ee;font-weight:700}.late-list{padding:12px 14px;border-radius:12px;color:#93435b;background:#fff0f3}.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px solid #e7eaf2;text-align:left;vertical-align:top}th{color:#66718b;background:#f7f8fc;font-size:10px;letter-spacing:.04em}td strong,td small{display:block}td small{margin-top:2px;color:#74809a;font-size:10px}.empty{text-align:center;color:#7a849a;padding:20px}.footer{margin-top:28px;padding-top:14px;border-top:1px solid #e6e9f2;color:#7a849a;font-size:10px}.actions{display:flex;justify-content:flex-end;gap:8px;margin:0 auto 14px;max-width:1050px}.actions button{border:0;border-radius:10px;padding:10px 14px;color:#fff;background:#5267e8;font-weight:700;cursor:pointer}.actions button.secondary{color:#26335b;background:#e9edff}@media(max-width:800px){body{padding:12px}.body,.report-head{padding:22px 18px}.stats{grid-template-columns:repeat(2,1fr)}.meta{display:block}.meta span{display:block;margin-top:4px}.actions{justify-content:stretch}.actions button{flex:1}}@media print{body{padding:0;background:#fff;font-size:10px}.report{max-width:none;border:0;border-radius:0;box-shadow:none}.actions{display:none}.report-head{-webkit-print-color-adjust:exact;print-color-adjust:exact}.stat,.late-list,th{background:#f7f8fc;-webkit-print-color-adjust:exact;print-color-adjust:exact}table{page-break-inside:auto}tr{page-break-inside:avoid;page-break-after:auto}.section{break-inside:avoid}}
-  </style></head><body><div class="actions"><button onclick="window.print()">PDF olarak kaydet / Yazdır</button><button class="secondary" onclick="window.close()">Kapat</button></div><main class="report"><header class="report-head"><div class="brand">VERİMLİ DERS ÇALIŞMA AKADEMİSİ</div><h1>${escapeHTML(student.name)} • Çalışma Raporu</h1><p>Bugüne kadar yapılan çalışmaların haftalık özeti</p></header><div class="body"><div class="meta"><span><strong>Sınıf:</strong> ${escapeHTML(teacherStore.classes.find(item => item.id === student.class_id)?.name || "—")}</span><span><strong>Rapor tarihi:</strong> ${escapeHTML(reportDate)}</span><span><strong>İlk kayıt:</strong> ${student.created_at ? escapeHTML(formatDate(student.created_at)) : "—"}</span></div><section class="stats"><div class="stat"><span>Tamamlanan modül</span><strong>${metrics.completedIds.length} / 10</strong></div><div class="stat"><span>Özel ders atölyesi</span><strong>${metrics.workshopCompletedIds.length} / 10</strong></div><div class="stat"><span>Okunan paragraf</span><strong>${metrics.totalParagraphs}</strong></div><div class="stat"><span>Okuma günü</span><strong>${metrics.readingCount}</strong></div><div class="stat"><span>Telafi okuması</span><strong>${metrics.lateReadingCount}</strong></div><div class="stat"><span>Günlük giriş</span><strong>${metrics.totalLogins}</strong></div><div class="stat"><span>Plan görevi</span><strong>${metrics.planTotals.done} / ${metrics.planTotals.planned}</strong></div></section><section class="section"><h2>Modül ve hafta dökümü</h2><p>Her hafta öğrencinin modül, giriş, paragraf okuma, telafi ve plan durumu birlikte gösterilir.</p><div class="table-wrap"><table><thead><tr><th>Hafta</th><th>Modül</th><th>Paragraf okuması</th><th>Giriş</th><th>Plan / uygulama</th></tr></thead><tbody>${moduleRows || noRows}</tbody></table></div></section>${workshopRows ? `<section class="section"><h2>Verimli Çalışma Atölyesi • Özel ders programı</h2><p>Öğrencinin kendi başlangıç tarihine göre ilerleyen ayrı 10 haftalık rota.</p><div class="table-wrap"><table><thead><tr><th>Hafta</th><th>Ders</th><th>Durum</th><th>Uygulama</th></tr></thead><tbody>${workshopRows}</tbody></table></div></section>` : ""}<section class="section"><h2>Tamamlanan modüller</h2><p class="pill">${escapeHTML(completedModules)}</p></section>${answerSections ? `<section class="section"><h2>Modül cevapları ve uygulamalar</h2>${answerSections}</section>` : ""}${workshopAnswerSections ? `<section class="section"><h2>Özel ders atölyesi cevapları</h2>${workshopAnswerSections}</section>` : ""}${planSections ? `<section class="section"><h2>Haftalık plan görevleri</h2><ul class="plan-list">${planSections}</ul></section>` : ""}${lateDates ? `<section class="section"><h2>Telafi edilen okumalar</h2><p class="late-list">${escapeHTML(lateDates)}<br><small>Parantez içindeki tarih, okumanın ait olduğu gündür.</small></p></section>` : ""}<section class="section"><h2>Genel not</h2><p>${metrics.completedIds.length >= 7 ? "Düzenli ilerliyor. Bu alışkanlığı korumaya devam edebilir." : metrics.readingCount >= 10 ? "Okuma alışkanlığı güçleniyor. Modül uygulamalarını da düzenli tamamlaması faydalı olur." : "Küçük ve düzenli adımlarla ilerlemesi desteklenebilir."}</p></section><div class="footer">Bu rapor Verimli Ders Çalışma Akademisi kayıtlarından otomatik olarak oluşturulmuştur.</div></div></main><script>setTimeout(function(){window.focus();window.print()},450)</script></body></html>`);
+  </style></head><body><div class="actions"><button onclick="window.print()">PDF olarak kaydet / Yazdır</button><button class="secondary" onclick="window.close()">Kapat</button></div><main class="report"><header class="report-head"><div class="brand">VERİMLİ DERS ÇALIŞMA AKADEMİSİ</div><h1>${escapeHTML(student.name)} • Çalışma Raporu</h1><p>Bugüne kadar yapılan çalışmaların haftalık özeti</p></header><div class="body"><div class="meta"><span><strong>Sınıf:</strong> ${escapeHTML(teacherStore.classes.find(item => item.id === student.class_id)?.name || "—")}</span><span><strong>Rapor tarihi:</strong> ${escapeHTML(reportDate)}</span><span><strong>İlk kayıt:</strong> ${student.created_at ? escapeHTML(formatDate(student.created_at)) : "—"}</span></div><section class="stats"><div class="stat"><span>Tamamlanan modül</span><strong>${metrics.completedIds.length} / 10</strong></div>${metrics.isWorkshopStudent ? `<div class="stat"><span>Özel ders atölyesi</span><strong>${metrics.workshopCompletedIds.length} / 10</strong></div>` : ""}<div class="stat"><span>Okunan paragraf</span><strong>${metrics.totalParagraphs}</strong></div><div class="stat"><span>Okuma günü</span><strong>${metrics.readingCount}</strong></div><div class="stat"><span>Telafi okuması</span><strong>${metrics.lateReadingCount}</strong></div><div class="stat"><span>Günlük giriş</span><strong>${metrics.totalLogins}</strong></div><div class="stat"><span>Plan görevi</span><strong>${metrics.planTotals.done} / ${metrics.planTotals.planned}</strong></div></section><section class="section"><h2>Modül ve hafta dökümü</h2><p>Her hafta öğrencinin modül, giriş, paragraf okuma, telafi ve plan durumu birlikte gösterilir.</p><div class="table-wrap"><table><thead><tr><th>Hafta</th><th>Modül</th><th>Paragraf okuması</th><th>Giriş</th><th>Plan / uygulama</th></tr></thead><tbody>${moduleRows || noRows}</tbody></table></div></section>${workshopRows ? `<section class="section"><h2>Verimli Çalışma Atölyesi • Özel ders programı</h2><p>Öğrencinin kendi başlangıç tarihine göre ilerleyen ayrı 10 haftalık rota.</p><div class="table-wrap"><table><thead><tr><th>Hafta</th><th>Ders</th><th>Durum</th><th>Uygulama</th></tr></thead><tbody>${workshopRows}</tbody></table></div></section>` : ""}<section class="section"><h2>Tamamlanan modüller</h2><p class="pill">${escapeHTML(completedModules)}</p></section>${answerSections ? `<section class="section"><h2>Modül cevapları ve uygulamalar</h2>${answerSections}</section>` : ""}${workshopAnswerSections ? `<section class="section"><h2>Özel ders atölyesi cevapları</h2>${workshopAnswerSections}</section>` : ""}${planSections ? `<section class="section"><h2>Haftalık plan görevleri</h2><ul class="plan-list">${planSections}</ul></section>` : ""}${lateDates ? `<section class="section"><h2>Telafi edilen okumalar</h2><p class="late-list">${escapeHTML(lateDates)}<br><small>Parantez içindeki tarih, okumanın ait olduğu gündür.</small></p></section>` : ""}<section class="section"><h2>Genel not</h2><p>${metrics.completedIds.length >= 7 ? "Düzenli ilerliyor. Bu alışkanlığı korumaya devam edebilir." : metrics.readingCount >= 10 ? "Okuma alışkanlığı güçleniyor. Modül uygulamalarını da düzenli tamamlaması faydalı olur." : "Küçük ve düzenli adımlarla ilerlemesi desteklenebilir."}</p></section><div class="footer">Bu rapor Verimli Ders Çalışma Akademisi kayıtlarından otomatik olarak oluşturulmuştur.</div></div></main><script>setTimeout(function(){window.focus();window.print()},450)</script></body></html>`);
   reportWindow.document.close();
   const reportDoc = reportWindow.document;
   reportDoc.querySelector(".footer")?.remove();
@@ -3046,7 +3117,7 @@ function openStudentPdfReport(studentId) {
     '<section class="visual-summary"><div class="visual-summary-heading"><div><span>VELİ İÇİN KISA ÖZET</span><h2>Çalışma durumu bir bakışta</h2></div><small>', escapeHTML(reportDate), '</small></div>',
     '<div class="visual-chart-grid"><article class="visual-chart"><div class="visual-chart-title"><strong>📖 Paragraf okuması</strong><b>', metrics.totalParagraphs, ' / ', expectedParagraphs, '</b></div><div class="visual-track"><i class="target" style="width:100%"></i><i class="actual" style="width:', paragraphPercent, '%"></i></div><div class="visual-legend"><span><i class="dot target-dot"></i>Okunması gereken: ', expectedParagraphs, '</span><span><i class="dot actual-dot"></i>Okunan: ', metrics.totalParagraphs, '</span></div></article>',
     '<article class="visual-chart"><div class="visual-chart-title"><strong>🎯 Modül ilerlemesi</strong><b>', metrics.completedIds.length, ' / ', requiredModules, '</b></div><div class="visual-track"><i class="target" style="width:100%"></i><i class="actual module-actual" style="width:', modulePercent, '%"></i></div><div class="visual-legend"><span><i class="dot target-dot"></i>Yapılması gereken: ', requiredModules, '</span><span><i class="dot actual-dot"></i>Yapılan: ', metrics.completedIds.length, '</span></div></article>',
-    '<article class="visual-chart"><div class="visual-chart-title"><strong>🧭 Özel ders atölyesi</strong><b>', metrics.workshopCompletedIds.length, ' / ', workshopRequired, '</b></div><div class="visual-track"><i class="target" style="width:100%"></i><i class="actual workshop-actual" style="width:', workshopPercent, '%"></i></div><div class="visual-legend"><span><i class="dot target-dot"></i>Açılan hafta: ', workshopRequired, '</span><span><i class="dot workshop-dot"></i>Tamamlanan: ', metrics.workshopCompletedIds.length, '</span></div></article></div></section>'
+    metrics.isWorkshopStudent ? '<article class="visual-chart"><div class="visual-chart-title"><strong>🧭 Özel ders atölyesi</strong><b>' + metrics.workshopCompletedIds.length + ' / ' + workshopRequired + '</b></div><div class="visual-track"><i class="target" style="width:100%"></i><i class="actual workshop-actual" style="width:' + workshopPercent + '%"></i></div><div class="visual-legend"><span><i class="dot target-dot"></i>Açılan hafta: ' + workshopRequired + '</span><span><i class="dot workshop-dot"></i>Tamamlanan: ' + metrics.workshopCompletedIds.length + '</span></div></article></div></section>' : '</div></section>'
   ].join("");
   reportDoc.querySelector(".stats")?.insertAdjacentHTML("afterend", visualSummary);
   const printStyle = reportDoc.createElement("style");
@@ -3069,7 +3140,8 @@ function renderTeacherStudentDetail(studentId) {
   const activityEntries = Object.entries(payload.activities || {}).filter(([, record]) => Object.keys(record.choices || {}).length > 0);
   const plan = Array.isArray(payload.plan) ? payload.plan : [];
   const plannedItems = plan.filter(item => item.subject || item.topic || item.duration);
-  const workshop = normalizeWorkshopState(payload.workshop);
+  const workshopStudent = isWorkshopStudentRecord(student);
+  const workshop = workshopStudent ? normalizeWorkshopState(payload.workshop) : createEmptyWorkshopState();
   const workshopCompletedIds = getWorkshopCompletedIds(workshop);
   const workshopWeek = getWorkshopWeekNumber(workshop);
   const workshopAnswers = Object.entries(workshop.answers || {}).sort((a, b) => new Date(b[1]?.savedAt || 0) - new Date(a[1]?.savedAt || 0));
@@ -3077,7 +3149,7 @@ function renderTeacherStudentDetail(studentId) {
   teacherContent.insertAdjacentHTML("beforeend", `<div class="teacher-modal" id="teacher-student-modal"><div class="teacher-modal-backdrop" data-action="close-student-detail"></div><article class="student-detail-sheet">
     <header class="student-detail-header"><div class="student-detail-identity"><span>${escapeHTML(student.name.charAt(0).toLocaleUpperCase("tr-TR"))}</span><div><small>ÖĞRENCİ GELİŞİM DOSYASI</small><h2>${escapeHTML(student.name)}</h2><p>Son güncelleme: ${progress.last_activity ? formatDate(progress.last_activity) : "Henüz çalışma yok"}</p></div></div><button class="modal-close" type="button" data-action="close-student-detail" aria-label="Kapat">×</button></header>
     <div class="student-detail-body">
-      <div class="student-detail-stats"><div><span>Tamamlanan modül</span><strong>${completedIds.length} / 10</strong></div><div><span>Özel ders atölyesi</span><strong>${workshopCompletedIds.length} / 10</strong></div><div><span>Haftalık plan</span><strong>%${Number(progress.plan_percent || 0)}</strong></div><div><span>Yanıtlanan uygulama</span><strong>${answeredModules.length + workshopAnswers.length}</strong></div><div><span>Haftalık giriş</span><strong>${weeklyTracking.loginCount} / 7</strong></div><div><span>Haftalık okuma</span><strong>${readingCount} / 7</strong></div></div>
+      <div class="student-detail-stats"><div><span>Tamamlanan modül</span><strong>${completedIds.length} / 10</strong></div>${workshopStudent ? `<div><span>Özel ders atölyesi</span><strong>${workshopCompletedIds.length} / 10</strong></div>` : ""}<div><span>Haftalık plan</span><strong>%${Number(progress.plan_percent || 0)}</strong></div><div><span>Yanıtlanan uygulama</span><strong>${answeredModules.length + workshopAnswers.length}</strong></div><div><span>Haftalık giriş</span><strong>${weeklyTracking.loginCount} / 7</strong></div><div><span>Haftalık okuma</span><strong>${readingCount} / 7</strong></div></div>
       <section class="detail-section teacher-reading-section"><div class="detail-title"><div><span class="section-tag">PERŞEMBE – ÇARŞAMBA</span><h3>Günlük giriş ve 5 paragraf takibi</h3></div><strong>${weeklyTracking.loginCount}/7 giriş • ${readingCount}/7 okuma</strong></div><div class="teacher-week-grid">${weeklyTracking.days.map(day => {
         const labels = formatReadingDay(day.date);
         const isToday = day.key === weeklyTracking.todayKey;
@@ -3085,12 +3157,12 @@ function renderTeacherStudentDetail(studentId) {
         return `<article class="teacher-day-card ${isToday ? "today" : ""} ${day.reading ? (day.late ? "late" : "done") : ""}"><div class="teacher-day-heading"><span>${escapeHTML(labels.weekday)}</span><strong>${escapeHTML(labels.date)}</strong>${isToday ? "<small>BUGÜN</small>" : ""}</div><div class="teacher-day-signals"><span class="${day.login ? "yes" : isFuture ? "waiting" : "no"}">${day.login ? "✓ Giriş yaptı" : isFuture ? "• Bekleniyor" : "— Giriş yapmadı"}</span><span class="${day.reading ? (day.late ? "late" : "yes") : isFuture ? "waiting" : "no"}">${day.reading ? (day.late ? `↺ 5 paragraf telafi edildi${day.readingEntry?.completedAt ? ` (${formatDate(day.readingEntry.completedAt)})` : ""}` : "✓ 5 paragraf okudu") : isFuture ? "• Okuma bekleniyor" : "— Okuma yapmadı"}</span></div></article>`;
       }).join("")}</div></section>
       <section class="detail-section"><div class="detail-title"><div><span class="section-tag">MODÜLLER</span><h3>Beceri gelişimi</h3></div></div><div class="detail-module-grid">${MODULES.map(module => `<div class="detail-module ${completedIds.includes(module.id) ? "done" : answeredModules.some(([id]) => Number(id) === module.id) ? "progress" : ""}"><span>${completedIds.includes(module.id) ? "✓" : module.icon}</span><div><small>${module.id}. Hafta</small><strong>${module.title}</strong></div></div>`).join("")}</div></section>
-      <section class="detail-section teacher-workshop-detail"><div class="detail-title"><div><span class="section-tag">VERİMLİ ÇALIŞMA ATÖLYESİ</span><h3>Özel ders programı</h3><p>${workshop.startedAt ? `${formatDate(workshop.startedAt)} tarihinde başladı • Şu anda ${workshopWeek}. program haftası` : "Öğrenci bu ayrı programa henüz başlamadı."}</p></div><strong>${workshopCompletedIds.length}/10 hafta</strong></div><div class="detail-workshop-route">${WORKSHOP_MODULES.map(module => `<div class="detail-workshop-week ${workshop.completed[module.id] ? "done" : workshop.startedAt && module.id === workshopWeek ? "current" : !workshop.startedAt || module.id > workshopWeek ? "locked" : workshop.answers[module.id] ? "progress" : ""}"><span>${workshop.completed[module.id] ? "✓" : module.icon}</span><div><small>${module.id}. HAFTA${workshop.startedAt ? ` • ${formatWorkshopSchedule(module.id, workshop)}` : ""}</small><strong>${module.title}</strong>${workshop.answers[module.id] ? `<p>${Object.values(workshop.answers[module.id].values || {}).filter(value => String(value || "").trim()).length} cevap kaydedildi</p>` : ""}</div></div>`).join("")}</div>${workshopAnswers.length ? `<div class="answer-accordion workshop-answer-accordion">${workshopAnswers.map(([id, record]) => {
+      ${workshopStudent ? `<section class="detail-section teacher-workshop-detail"><div class="detail-title"><div><span class="section-tag">VERİMLİ ÇALIŞMA ATÖLYESİ</span><h3>Özel ders programı</h3><p>${workshop.startedAt ? `${formatDate(workshop.startedAt)} tarihinde başladı • Şu anda ${workshopWeek}. program haftası` : "Öğrenci bu ayrı programa henüz başlamadı."}</p></div><strong>${workshopCompletedIds.length}/10 hafta</strong></div><div class="detail-workshop-route">${WORKSHOP_MODULES.map(module => `<div class="detail-workshop-week ${workshop.completed[module.id] ? "done" : workshop.startedAt && module.id === workshopWeek ? "current" : !workshop.startedAt || module.id > workshopWeek ? "locked" : workshop.answers[module.id] ? "progress" : ""}"><span>${workshop.completed[module.id] ? "✓" : module.icon}</span><div><small>${module.id}. HAFTA${workshop.startedAt ? ` • ${formatWorkshopSchedule(module.id, workshop)}` : ""}</small><strong>${module.title}</strong>${workshop.answers[module.id] ? `<p>${Object.values(workshop.answers[module.id].values || {}).filter(value => String(value || "").trim()).length} cevap kaydedildi</p>` : ""}</div></div>`).join("")}</div>${workshopAnswers.length ? `<div class="answer-accordion workshop-answer-accordion">${workshopAnswers.map(([id, record]) => {
         const module = WORKSHOP_MODULES.find(item => item.id === Number(id));
         if (!module) return "";
         const answers = module.fields.filter(field => record.values?.[field[0]]).map(field => `<div><small>${field[1]}</small><p>${escapeHTML(record.values[field[0]])}</p></div>`).join("");
         return `<details><summary><span>${module.icon}</span><div><small>ATÖLYE • ${module.id}. HAFTA</small><strong>${module.title}</strong></div><b>＋</b></summary><div class="answer-detail">${answers}</div></details>`;
-      }).join("")}</div>` : ""}</section>
+      }).join("")}</div>` : ""}</section>` : ""}
       <section class="detail-section"><div class="detail-title"><div><span class="section-tag">ETKİLEŞİMLİ ATÖLYELER</span><h3>Karar, güven ve görev takibi</h3></div></div>${activityEntries.length ? `<div class="teacher-activity-list">${activityEntries.map(([id, record]) => {
         const lab = ACTIVITY_LABS[id];
         if (!lab) return "";
@@ -3138,7 +3210,8 @@ function buildRemoteStudentReport(student) {
   const weeklyTracking = getWeeklyTracking(payload);
   const readingCount = weeklyTracking.readingCount;
   const answers = Object.entries(payload.answers || {}).sort((a, b) => new Date(b[1]?.savedAt || 0) - new Date(a[1]?.savedAt || 0));
-  const workshop = normalizeWorkshopState(payload.workshop);
+  const workshopStudent = isWorkshopStudentRecord(student);
+  const workshop = workshopStudent ? normalizeWorkshopState(payload.workshop) : createEmptyWorkshopState();
   const workshopCompleted = getWorkshopCompletedIds(workshop);
   const lastAnswer = answers[0];
   let lastAnswerText = "Henüz uygulama cevabı yok.";
@@ -3146,7 +3219,9 @@ function buildRemoteStudentReport(student) {
     const module = MODULES.find(item => item.id === Number(lastAnswer[0]));
     lastAnswerText = `${module?.title || "Modül"}\n${module?.fields.filter(field => lastAnswer[1].values?.[field[0]]).map(field => `${field[1]} ${lastAnswer[1].values[field[0]]}`).join("\n") || ""}`;
   }
-  return `VERİMLİ DERS ÇALIŞMA AKADEMİSİ\nÖĞRETMEN GELİŞİM RAPORU\n\nÖğrenci: ${student.name}\nTarih: ${new Intl.DateTimeFormat("tr-TR").format(new Date())}\nTamamlanan modül: ${completedIds.length} / ${getActiveModules().length}\nEtkileşimli atölye: ${activityCount} / ${getActiveModules().length}\nÖzel ders programı: ${workshopCompleted.length} / 10${workshop.startedAt ? ` • ${getWorkshopWeekNumber(workshop)}. haftada` : " • Henüz başlamadı"}\nBu haftaki giriş: ${weeklyTracking.loginCount} / 7\nBu haftaki 5 paragraf okuması: ${readingCount} / 7\nHaftalık plan: %${Number(progress.plan_percent || 0)}\nSon etkinlik: ${progress.last_activity ? formatDate(progress.last_activity) : "Henüz yok"}\n\nTamamlanan modüller:\n${completedIds.length ? completedIds.map(id => `${id}. ${MODULES.find(module => module.id === id)?.title || ""}`).join("\n") : "Henüz yok"}\n\nTamamlanan özel ders haftaları:\n${workshopCompleted.length ? workshopCompleted.map(id => `${id}. ${WORKSHOP_MODULES.find(module => module.id === id)?.title || ""}`).join("\n") : "Henüz yok"}\n\nSon uygulama:\n${lastAnswerText}`;
+  const workshopSummary = workshopStudent ? `\nÖzel ders programı: ${workshopCompleted.length} / 10${workshop.startedAt ? ` • ${getWorkshopWeekNumber(workshop)}. haftada` : " • Henüz başlamadı"}` : "";
+  const workshopDetails = workshopStudent ? `\n\nTamamlanan özel ders haftaları:\n${workshopCompleted.length ? workshopCompleted.map(id => `${id}. ${WORKSHOP_MODULES.find(module => module.id === id)?.title || ""}`).join("\n") : "Henüz yok"}` : "";
+  return `VERİMLİ DERS ÇALIŞMA AKADEMİSİ\nÖĞRETMEN GELİŞİM RAPORU\n\nÖğrenci: ${student.name}\nTarih: ${new Intl.DateTimeFormat("tr-TR").format(new Date())}\nTamamlanan modül: ${completedIds.length} / ${getActiveModules().length}\nEtkileşimli atölye: ${activityCount} / ${getActiveModules().length}${workshopSummary}\nBu haftaki giriş: ${weeklyTracking.loginCount} / 7\nBu haftaki 5 paragraf okuması: ${readingCount} / 7\nHaftalık plan: %${Number(progress.plan_percent || 0)}\nSon etkinlik: ${progress.last_activity ? formatDate(progress.last_activity) : "Henüz yok"}\n\nTamamlanan modüller:\n${completedIds.length ? completedIds.map(id => `${id}. ${MODULES.find(module => module.id === id)?.title || ""}`).join("\n") : "Henüz yok"}${workshopDetails}\n\nSon uygulama:\n${lastAnswerText}`;
 }
 
 async function createTeacherClass(form) {
@@ -3188,6 +3263,53 @@ async function addTeacherStudent(form) {
     return;
   }
   showToast(`${name} sınıfa eklendi. Giriş kodunu öğrenciyle paylaşabilirsiniz. 🎒`);
+  await loadTeacherData();
+}
+
+async function addWorkshopStudent(form) {
+  const existingWorkshopClass = getWorkshopClass();
+  const name = form.elements.studentName.value.trim();
+  const code = form.elements.studentCode.value.trim().toUpperCase();
+  const classCode = existingWorkshopClass?.code_hint || form.elements.classCode?.value.trim().toUpperCase() || "";
+  const message = form.querySelector("[data-form-message]");
+  if (!name || code.length < 6 || (!existingWorkshopClass && classCode.length < 6)) {
+    message.textContent = !existingWorkshopClass
+      ? "Atölye ortak kodunu, öğrenci adını ve en az 6 karakterli öğrenci kodunu yazın."
+      : "Öğrenci adı ve en az 6 karakterli öğrenci kodunu yazın.";
+    message.className = "login-message show error";
+    return;
+  }
+
+  setFormBusy(form, true, "Atölyeye ekleniyor…");
+  let workshopClassId = existingWorkshopClass?.id || null;
+  if (!workshopClassId) {
+    const classResult = await cloudClient.rpc("teacher_create_class", { p_name: WORKSHOP_CLASS_NAME, p_code: classCode });
+    if (classResult.error) {
+      setFormBusy(form, false);
+      message.textContent = classResult.error.message || "Atölye öğrenci alanı oluşturulamadı.";
+      message.className = "login-message show error";
+      return;
+    }
+    const createdClass = Array.isArray(classResult.data) ? classResult.data[0] : classResult.data;
+    workshopClassId = createdClass?.id || null;
+  }
+
+  if (!workshopClassId) {
+    setFormBusy(form, false);
+    message.textContent = "Atölye öğrenci alanı oluşturuldu ancak kayıt tamamlanamadı. Sayfayı yenileyip tekrar deneyin.";
+    message.className = "login-message show error";
+    return;
+  }
+
+  const studentResult = await cloudClient.rpc("teacher_add_student", { p_class_id: workshopClassId, p_name: name, p_code: code });
+  setFormBusy(form, false);
+  if (studentResult.error) {
+    message.textContent = studentResult.error.message || "Atölye öğrencisi eklenemedi.";
+    message.className = "login-message show error";
+    return;
+  }
+  teacherPanelView = "workshop";
+  showToast(`${name} yalnızca Verimli Çalışma Atölyesi öğrenci listesine eklendi. 🧭`);
   await loadTeacherData();
 }
 
@@ -3572,6 +3694,20 @@ document.addEventListener("click", event => {
     const report = buildWeeklyClassReport(teacherStore.activeClassId, actionButton.dataset.weekKey);
     if (report) copyText(report, "Seçilen haftanın sınıf raporu kopyalandı. 📋");
   }
+  else if (action === "toggle-workshop-add-student") {
+    const form = document.querySelector("#workshop-add-student-form");
+    form.hidden = !form.hidden;
+    if (!form.hidden) (form.elements.classCode || form.elements.studentName).focus();
+  }
+  else if (action === "generate-workshop-class-code") {
+    const form = document.querySelector("#workshop-add-student-form");
+    form.elements.classCode.value = `ATOLYE-${Math.floor(1000 + Math.random() * 9000)}`;
+  }
+  else if (action === "generate-workshop-student-code") {
+    const form = document.querySelector("#workshop-add-student-form");
+    const namePart = form.elements.studentName.value.trim().split(/\s+/)[0].toLocaleUpperCase("tr-TR").replace(/[^A-ZÇĞİÖŞÜ]/g, "").slice(0, 5) || "OGR";
+    form.elements.studentCode.value = `${namePart}-${Math.floor(1000 + Math.random() * 9000)}`;
+  }
   else if (action === "toggle-add-student") {
     const form = document.querySelector("#add-student-form");
     form.hidden = !form.hidden;
@@ -3621,6 +3757,7 @@ document.addEventListener("submit", event => {
   else if (event.target.id === "teacher-login-form") handleTeacherLogin(event.target);
   else if (event.target.id === "create-class-form") createTeacherClass(event.target);
   else if (event.target.id === "add-student-form") addTeacherStudent(event.target);
+  else if (event.target.id === "workshop-add-student-form") addWorkshopStudent(event.target);
   else if (event.target.id === "edit-student-form") updateTeacherStudent(event.target);
   else if (event.target.id === "teacher-module-form") saveTeacherModule(event.target);
 });
