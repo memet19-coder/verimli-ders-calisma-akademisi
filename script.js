@@ -1184,6 +1184,9 @@ const STUDENT_ONBOARDING_STEPS = [
   ["📖", "Paragraf görevi nasıl yapılır?", "Her gün Okuma Atölyesi’ne gidip 5 paragraf oku. Sonra Akademi’ye dönerek o günün kaydını tamamla."]
 ];
 
+// Özel ders öğrencileri, kamp/Akademi modüllerinden bağımsız ilerler.
+const ACADEMY_ONLY_PAGES = new Set(["home", "modules", "badges", "tips"]);
+
 function renderStudentOnboarding() {
   const step = STUDENT_ONBOARDING_STEPS[onboardingStep] || STUDENT_ONBOARDING_STEPS[0];
   const last = onboardingStep === STUDENT_ONBOARDING_STEPS.length - 1;
@@ -1191,7 +1194,11 @@ function renderStudentOnboarding() {
 }
 
 function navigate(page, options = {}) {
-  if (page === "workshop" && !studentHasWorkshopAccess()) {
+  const workshopStudent = studentHasWorkshopAccess();
+  if (workshopStudent && ACADEMY_ONLY_PAGES.has(page)) {
+    page = "workshop";
+    options = {};
+  } else if (page === "workshop" && !workshopStudent) {
     showToast("Verimli Çalışma Atölyesi yalnızca öğretmenin bu programa ayrıca eklediği öğrencilere açıktır.", "error");
     page = "home";
     options = {};
@@ -1221,7 +1228,17 @@ function studentHasWorkshopAccess() {
 
 function updateStudentProgramVisibility() {
   const allowed = studentHasWorkshopAccess();
-  document.querySelectorAll(".workshop-nav-item").forEach(item => { item.hidden = !allowed; });
+  document.querySelectorAll("#student-app .main-nav [data-page], #student-mobile-nav [data-page]").forEach(item => {
+    const page = item.dataset.page;
+    item.hidden = page === "workshop" ? !allowed : allowed && ACADEMY_ONLY_PAGES.has(page);
+  });
+
+  const brandTitle = document.querySelector("#student-app .brand strong");
+  const brandSubtitle = document.querySelector("#student-app .brand small");
+  const eyebrow = document.querySelector("#student-app .topbar .eyebrow");
+  if (brandTitle) brandTitle.textContent = allowed ? "Verimli Çalışma Atölyesi" : "Verimli Ders Akademisi";
+  if (brandSubtitle) brandSubtitle.textContent = allowed ? "10 Haftalık Özel Ders" : "Çalışma Becerileri";
+  if (eyebrow) eyebrow.textContent = allowed ? "VERİMLİ ÇALIŞMA ATÖLYESİ" : "VERİMLİ DERS ÇALIŞMA AKADEMİSİ";
   return allowed;
 }
 
@@ -1666,10 +1683,16 @@ async function initializeApplication() {
 
 function renderCurrentPage() {
   const workshopAllowed = updateStudentProgramVisibility();
-  if (!workshopAllowed && state.page === "workshop") {
+  if (workshopAllowed && ACADEMY_ONLY_PAGES.has(state.page)) {
+    state.page = "workshop";
+    state.activeModule = null;
+  } else if (!workshopAllowed && state.page === "workshop") {
     state.page = "home";
     state.activeWorkshopModule = null;
   }
+  document.querySelectorAll("[data-page]").forEach(button => {
+    button.classList.toggle("active", button.dataset.page === state.page);
+  });
   const titles = { home: "Ana Sayfa", modules: "Modüller", workshop: "Verimli Çalışma Atölyesi", plan: "Haftalık Planım", report: "Gelişim Raporum", badges: "Başarı Rozetlerim", tips: "Öğretmen Tavsiyeleri", settings: "Ayarlar" };
   pageTitle.textContent = state.activeModule
     ? `${state.activeModule}. Hafta`
