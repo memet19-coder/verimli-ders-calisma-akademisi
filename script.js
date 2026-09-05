@@ -49,6 +49,7 @@ const STORAGE_KEYS = {
 
 const DAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
 const WORKSHOP_CLASS_NAME = "Verimli Çalışma Atölyesi • Özel Ders";
+const CLASS_ARCHIVE_PREFIX = "__VDCA_ARCHIVE__";
 const PREVIEW_BLOCKED_ACTIONS = new Set([
   "quiz-option", "activity-choice", "activity-confidence", "activity-day",
   "save-activity-reflection", "select-reading-day", "visit-reading-workshop", "complete-daily-reading", "save-draft", "add-plan-task", "remove-plan-task",
@@ -1370,7 +1371,7 @@ function downloadClassBackup(classId) {
     backupType: "class",
     schemaVersion: 1,
     exportedAt: new Date().toISOString(),
-    class: { id: classRecord.id, name: classRecord.name, codeHint: classRecord.code_hint },
+    class: { id: classRecord.id, name: classRecord.name, codeHint: getClassArchiveMetadata(classRecord).originalCode },
     students
   };
   const date = new Date().toISOString().slice(0, 10);
@@ -2532,7 +2533,7 @@ function isWorkshopClass(classRecord) {
 }
 
 function getWorkshopClass() {
-  return teacherStore.classes.find(isWorkshopClass) || null;
+  return teacherStore.classes.find(item => isWorkshopClass(item) && item.active !== false) || null;
 }
 
 function getWorkshopStudents() {
@@ -2545,7 +2546,33 @@ function isWorkshopStudentRecord(student) {
 }
 
 function getAcademyClasses() {
-  return teacherStore.classes.filter(item => !isWorkshopClass(item));
+  return teacherStore.classes.filter(item => !isWorkshopClass(item) && item.active !== false);
+}
+
+function getArchivedAcademyClasses() {
+  return teacherStore.classes.filter(item => !isWorkshopClass(item) && item.active === false);
+}
+
+function getClassArchiveMetadata(classRecord) {
+  const hint = String(classRecord?.code_hint || "");
+  if (hint.startsWith(CLASS_ARCHIVE_PREFIX)) {
+    const encoded = hint.slice(CLASS_ARCHIVE_PREFIX.length);
+    const separatorIndex = encoded.indexOf("::");
+    const timestamp = Number(separatorIndex >= 0 ? encoded.slice(0, separatorIndex) : "");
+    const originalCode = separatorIndex >= 0 ? encoded.slice(separatorIndex + 2) : hint;
+    if (Number.isFinite(timestamp) && timestamp > 0) {
+      return { archivedAt: new Date(timestamp), originalCode };
+    }
+  }
+  return { archivedAt: new Date(classRecord?.created_at || Date.now()), originalCode: hint };
+}
+
+function getArchiveExpiryInfo(classRecord) {
+  const { archivedAt } = getClassArchiveMetadata(classRecord);
+  const expiresAt = new Date(archivedAt);
+  expiresAt.setMonth(expiresAt.getMonth() + 3);
+  const daysLeft = Math.max(0, Math.ceil((expiresAt.getTime() - Date.now()) / 86400000));
+  return { archivedAt, expiresAt, daysLeft };
 }
 
 function getAcademyStudents() {
@@ -2555,8 +2582,16 @@ function getAcademyStudents() {
 
 async function loadTeacherData() {
   teacherContent.innerHTML = `<div class="teacher-loading"><span class="button-spinner dark"></span><strong>Sınıf verileri hazırlanıyor…</strong></div>`;
+  // GitHub Pages sürekli çalışmadığı için süre dolan arşivleri panel açılır açılmaz temizle.
+  const archiveResult = await cloudClient.from("classes").select("id,name,code_hint,active,created_at").eq("active", false);
+  if (!archiveResult.error) {
+    const expiredIds = (archiveResult.data || [])
+      .filter(item => !isWorkshopClass(item) && getArchiveExpiryInfo(item).daysLeft <= 0)
+      .map(item => item.id);
+    if (expiredIds.length) await cloudClient.from("classes").delete().in("id", expiredIds);
+  }
   const [classesResult, studentsResult] = await Promise.all([
-    cloudClient.from("classes").select("id,name,code_hint,active,created_at").eq("active", true).order("created_at"),
+    cloudClient.from("classes").select("id,name,code_hint,active,created_at").order("created_at"),
     cloudClient.from("students").select("id,class_id,name,code_hint,active,created_at,student_progress(payload,completed_count,plan_percent,last_activity,updated_at)").eq("active", true).order("name")
   ]);
   if (classesResult.error || studentsResult.error) {
@@ -2806,6 +2841,7 @@ function renderTeacherWorkshopTracking() {
 
 function renderTeacherDashboard() {
   const academyClasses = getAcademyClasses();
+  const archivedClasses = getArchivedAcademyClasses();
   const academyStudents = getAcademyStudents();
   const activeClass = academyClasses.find(item => item.id === teacherStore.activeClassId) || null;
   const visibleStudents = activeClass ? academyStudents.filter(item => item.class_id === activeClass.id) : [];
@@ -2841,8 +2877,9 @@ function renderTeacherDashboard() {
         <div class="teacher-panel-title"><div><span class="section-tag">SINIFLARIM</span><h2>Sınıflar</h2></div><span class="count-badge">${academyClasses.length}</span></div>
         <div class="class-list">${academyClasses.length ? academyClasses.map(item => {
           const count = academyStudents.filter(student => student.class_id === item.id).length;
-          return `<button class="class-list-item ${item.id === teacherStore.activeClassId ? "active" : ""}" type="button" data-action="select-teacher-class" data-class-id="${item.id}"><span>📘</span><div><strong>${escapeHTML(item.name)}</strong><small>${count} öğrenci • ${escapeHTML(item.code_hint)}</small></div><b>›</b></button>`;
+          return `<div class="class-list-row"><button class="class-list-item ${item.id === teacherStore.activeClassId ? "active" : ""}" type="button" data-action="select-teacher-class" data-class-id="${item.id}"><span>📘</span><div><strong>${escapeHTML(item.name)}</strong><small>${count} öğrenci • ${escapeHTML(item.code_hint)}</small></div><b>›</b></button><button class="manage-class-button" type="button" data-action="manage-class" data-class-id="${item.id}" aria-label="${escapeHTML(item.name)} sınıfını yönet" title="Sınıfı yönet">•••</button></div>`;
         }).join("") : `<div class="empty-mini">Henüz sınıf oluşturmadınız.</div>`}</div>
+        <button class="class-archive-button" type="button" data-action="open-class-archive"><span>🗄️</span><strong>Arşiv</strong><small>${archivedClasses.length} sınıf</small><b>›</b></button>
         <form id="create-class-form" class="teacher-mini-form" novalidate><h3>＋ Yeni sınıf oluştur</h3><input name="className" maxlength="80" placeholder="Sınıf adı: 7/A Türkçe" aria-label="Sınıf adı"><input name="classCode" maxlength="20" placeholder="Sınıf kodu: TURKCE7A" aria-label="Sınıf kodu"><div class="login-message" data-form-message></div><button class="button primary small" type="submit">Sınıfı Oluştur</button></form>
       </aside>
 
@@ -3205,6 +3242,31 @@ function renderTeacherStudentDetail(studentId) {
   </article></div>`);
 }
 
+function renderTeacherClassManagementModal(classId) {
+  const classRecord = getAcademyClasses().find(item => item.id === classId);
+  if (!classRecord) return;
+  const studentCount = teacherStore.students.filter(student => student.class_id === classId).length;
+  teacherContent.insertAdjacentHTML("beforeend", `<div class="teacher-modal management-modal" id="teacher-class-management-modal"><div class="teacher-modal-backdrop" data-action="close-class-management"></div><article class="management-dialog class-management-dialog" role="dialog" aria-modal="true" aria-labelledby="class-management-title">
+    <header class="management-header"><div><span class="section-tag">SINIF YÖNETİMİ</span><h2 id="class-management-title">${escapeHTML(classRecord.name)}</h2><p>${studentCount} öğrenci • ${escapeHTML(classRecord.code_hint)}</p></div><button class="modal-close" type="button" data-action="close-class-management" aria-label="Pencereyi kapat">×</button></header>
+    <section class="class-management-summary"><span>📦</span><div><strong>Bu sınıfı arşive taşıyabilirsiniz</strong><p>Arşivlenince öğrenciler giriş yapamaz. Tüm öğrenci çalışmaları korunur ve 3 ay içinde sınıfı geri alabilirsiniz.</p></div></section>
+    <div class="class-management-actions"><button class="button backup-class" type="button" data-action="backup-class" data-class-id="${classRecord.id}">💾 Önce Yedekle</button><button class="button archive-class" type="button" data-action="archive-class" data-class-id="${classRecord.id}">🗄️ Arşive Taşı</button></div>
+  </article></div>`);
+}
+
+function renderTeacherClassArchive() {
+  const archivedClasses = getArchivedAcademyClasses();
+  teacherContent.insertAdjacentHTML("beforeend", `<div class="teacher-modal management-modal" id="teacher-class-archive-modal"><div class="teacher-modal-backdrop" data-action="close-class-archive"></div><article class="management-dialog class-archive-dialog" role="dialog" aria-modal="true" aria-labelledby="class-archive-title">
+    <header class="management-header"><div><span class="section-tag">SINIF ARŞİVİ</span><h2 id="class-archive-title">Arşivlenen sınıflar</h2><p>Arşivlenen sınıflar 3 ay korunur; süre dolunca otomatik olarak kalıcı biçimde silinir.</p></div><button class="modal-close" type="button" data-action="close-class-archive" aria-label="Arşivi kapat">×</button></header>
+    <div class="class-archive-list">${archivedClasses.length ? archivedClasses.map(classRecord => {
+      const count = teacherStore.students.filter(student => student.class_id === classRecord.id).length;
+      const expiry = getArchiveExpiryInfo(classRecord);
+      const metadata = getClassArchiveMetadata(classRecord);
+      return `<article class="class-archive-item"><span class="class-archive-icon">🗄️</span><div class="class-archive-copy"><strong>${escapeHTML(classRecord.name)}</strong><small>${count} öğrenci • ${escapeHTML(metadata.originalCode)}</small><p>${formatDate(metadata.archivedAt)} tarihinde arşivlendi • <b>${expiry.daysLeft} gün sonra otomatik silinir</b></p></div><div class="class-archive-actions"><button class="button backup-class small" type="button" data-action="backup-class" data-class-id="${classRecord.id}">Yedekle</button><button class="button secondary small" type="button" data-action="restore-class" data-class-id="${classRecord.id}">Geri Al</button><button class="button danger small" type="button" data-action="delete-class" data-class-id="${classRecord.id}">Kalıcı Sil</button></div></article>`;
+    }).join("") : `<div class="class-archive-empty"><span>🗂️</span><h3>Arşiviniz boş</h3><p>Eski bir sınıfı arşivlediğinizde burada görünecek.</p></div>`}</div>
+    <footer class="class-archive-footer"><span>ℹ️</span><p>Süre dolmadan <strong>Geri Al</strong> düğmesiyle sınıfı ve bütün öğrenci kayıtlarını yeniden etkinleştirebilirsiniz.</p></footer>
+  </article></div>`);
+}
+
 function renderStudentManagementModal(studentId) {
   document.querySelector("#teacher-student-modal")?.remove();
   document.querySelector("#student-management-modal")?.remove();
@@ -3387,6 +3449,55 @@ async function deleteTeacherStudent(studentId) {
   document.querySelector("#student-management-modal")?.remove();
   showToast(`${student.name} sınıftan silindi.`);
   await loadTeacherData();
+}
+
+async function archiveTeacherClass(classId) {
+  const classRecord = getAcademyClasses().find(item => item.id === classId);
+  if (!classRecord) return;
+  const studentCount = teacherStore.students.filter(student => student.class_id === classId).length;
+  const confirmed = window.confirm(`${classRecord.name} arşive taşınacak. ${studentCount} öğrenci geçici olarak giriş yapamayacak; kayıtlar 3 ay korunacak. Devam etmek istiyor musunuz?`);
+  if (!confirmed) return;
+  const archivedHint = `${CLASS_ARCHIVE_PREFIX}${Date.now()}::${classRecord.code_hint}`;
+  const { error } = await cloudClient.from("classes").update({ active: false, code_hint: archivedHint }).eq("id", classId);
+  if (error) {
+    showToast(error.message || "Sınıf arşivlenemedi. Lütfen tekrar deneyin.", "error");
+    return;
+  }
+  document.querySelector("#teacher-class-management-modal")?.remove();
+  showToast(`${classRecord.name} arşive taşındı. 3 ay boyunca geri alabilirsiniz. 🗄️`);
+  await loadTeacherData();
+}
+
+async function restoreTeacherClass(classId) {
+  const classRecord = getArchivedAcademyClasses().find(item => item.id === classId);
+  if (!classRecord) return;
+  const metadata = getClassArchiveMetadata(classRecord);
+  const { error } = await cloudClient.from("classes").update({ active: true, code_hint: metadata.originalCode }).eq("id", classId);
+  if (error) {
+    showToast(error.message || "Sınıf arşivden çıkarılamadı. Lütfen tekrar deneyin.", "error");
+    return;
+  }
+  document.querySelector("#teacher-class-archive-modal")?.remove();
+  teacherStore.activeClassId = classId;
+  showToast(`${classRecord.name} yeniden etkinleştirildi. ✓`);
+  await loadTeacherData();
+}
+
+async function deleteTeacherClass(classId) {
+  const classRecord = getArchivedAcademyClasses().find(item => item.id === classId);
+  if (!classRecord) return;
+  const studentCount = teacherStore.students.filter(student => student.class_id === classId).length;
+  const confirmed = window.confirm(`${classRecord.name} ve içindeki ${studentCount} öğrencinin tüm çalışma kayıtları kalıcı olarak silinecek. Bu işlem geri alınamaz. Silmek istediğinize emin misiniz?`);
+  if (!confirmed) return;
+  const { error } = await cloudClient.from("classes").delete().eq("id", classId);
+  if (error) {
+    showToast(error.message || "Sınıf silinemedi. Lütfen tekrar deneyin.", "error");
+    return;
+  }
+  document.querySelector("#teacher-class-archive-modal")?.remove();
+  showToast(`${classRecord.name} ve bağlı kayıtları kalıcı olarak silindi.`);
+  await loadTeacherData();
+  renderTeacherClassArchive();
 }
 
 async function copyText(text, successMessage) {
@@ -3708,6 +3819,13 @@ document.addEventListener("click", event => {
     if (teacherPanelView === "workshop") renderTeacherWorkshopTracking();
     else renderTeacherDashboard();
   }
+  else if (action === "manage-class") renderTeacherClassManagementModal(actionButton.dataset.classId);
+  else if (action === "close-class-management") document.querySelector("#teacher-class-management-modal")?.remove();
+  else if (action === "open-class-archive") renderTeacherClassArchive();
+  else if (action === "close-class-archive") document.querySelector("#teacher-class-archive-modal")?.remove();
+  else if (action === "archive-class") archiveTeacherClass(actionButton.dataset.classId);
+  else if (action === "restore-class") restoreTeacherClass(actionButton.dataset.classId);
+  else if (action === "delete-class") deleteTeacherClass(actionButton.dataset.classId);
   else if (action === "select-report-week") {
     teacherStore.reportWeekKey = actionButton.dataset.weekKey;
     renderTeacherDashboard();
