@@ -2585,8 +2585,14 @@ async function loadTeacherData() {
   // GitHub Pages sürekli çalışmadığı için süre dolan arşivleri panel açılır açılmaz temizle.
   const archiveResult = await cloudClient.from("classes").select("id,name,code_hint,active,created_at").eq("active", false);
   if (!archiveResult.error) {
+    const legacyInactiveClasses = (archiveResult.data || []).filter(item => !isWorkshopClass(item) && !String(item.code_hint || "").startsWith(CLASS_ARCHIVE_PREFIX));
+    for (const classRecord of legacyInactiveClasses) {
+      const archivedHint = `${CLASS_ARCHIVE_PREFIX}${Date.now()}::${classRecord.code_hint}`;
+      await cloudClient.from("classes").update({ code_hint: archivedHint }).eq("id", classRecord.id);
+      classRecord.code_hint = archivedHint;
+    }
     const expiredIds = (archiveResult.data || [])
-      .filter(item => !isWorkshopClass(item) && getArchiveExpiryInfo(item).daysLeft <= 0)
+      .filter(item => !isWorkshopClass(item) && String(item.code_hint || "").startsWith(CLASS_ARCHIVE_PREFIX) && getArchiveExpiryInfo(item).daysLeft <= 0)
       .map(item => item.id);
     if (expiredIds.length) await cloudClient.from("classes").delete().in("id", expiredIds);
   }
