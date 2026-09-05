@@ -1083,6 +1083,7 @@ body {
 .teacher-panel-title h2 { margin: 0; font-size: 20px; }
 .count-badge { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 10px; color: var(--primary-dark); background: var(--primary-soft); font-size: 11px; font-weight: 900; }
 .class-list { display: grid; gap: 6px; }
+.class-list-row { display: grid; grid-template-columns: minmax(0, 1fr) 34px; gap: 5px; }
 .class-list-item { display: grid; grid-template-columns: 35px 1fr auto; align-items: center; gap: 9px; width: 100%; padding: 10px; border: 1px solid transparent; border-radius: 13px; text-align: left; background: #f8f9fc; cursor: pointer; }
 .class-list-item > span { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 10px; background: #fff; }
 .class-list-item strong, .class-list-item small { display: block; }
@@ -1090,6 +1091,13 @@ body {
 .class-list-item small { color: var(--muted); font-size: 9px; }
 .class-list-item > b { color: var(--muted); }
 .class-list-item.active { color: var(--primary-dark); border-color: color-mix(in srgb, var(--primary) 22%, white); background: var(--primary-soft); }
+.manage-class-button { width: 34px; border: 1px solid var(--line); border-radius: 11px; color: var(--muted); background: #fff; font-weight: 900; letter-spacing: 1px; cursor: pointer; }
+.manage-class-button:hover { color: var(--primary-dark); border-color: color-mix(in srgb, var(--primary) 30%, white); background: var(--primary-soft); }
+.class-archive-button { display: grid; grid-template-columns: 28px 1fr auto auto; align-items: center; gap: 7px; width: 100%; margin-top: 10px; padding: 9px 10px; border: 1px dashed #d8dce7; border-radius: 12px; color: var(--muted); text-align: left; background: #fbfcfe; cursor: pointer; }
+.class-archive-button strong { color: var(--ink); font-size: 11px; }
+.class-archive-button small { font-size: 8px; }
+.class-archive-button b { color: #a4aabd; }
+.class-archive-button:hover { border-color: #bfc6db; background: #f5f7fc; }
 .teacher-mini-form { display: grid; gap: 8px; margin-top: 17px; padding-top: 16px; border-top: 1px solid var(--line); }
 .teacher-mini-form h3 { margin: 0 0 2px; font-size: 12px; }
 .teacher-mini-form input { width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: #fafbfe; font-size: 11px; }
@@ -1234,6 +1242,29 @@ body {
 .management-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding: 24px 26px 18px; border-bottom: 1px solid var(--line); }
 .management-header h2 { margin: 0; font-size: 24px; }
 .management-header p { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
+.class-management-dialog { width: min(560px, 100%); }
+.class-management-summary { display: flex; align-items: flex-start; gap: 13px; margin: 24px 26px 14px; padding: 17px; border: 1px solid #e2e5ef; border-radius: 16px; background: #f8f9fc; }
+.class-management-summary > span { display: grid; width: 42px; height: 42px; flex: 0 0 42px; place-items: center; border-radius: 13px; background: #fff; font-size: 21px; }
+.class-management-summary strong { display: block; font-size: 13px; }
+.class-management-summary p { margin: 4px 0 0; color: var(--muted); font-size: 10px; line-height: 1.6; }
+.class-management-actions { display: flex; justify-content: flex-end; gap: 9px; padding: 0 26px 26px; }
+.archive-class { color: #8b570d; border: 1px solid #efd49d; background: #fff7e7; }
+.archive-class:hover { background: #ffedc6; }
+.class-archive-dialog { width: min(820px, 100%); }
+.class-archive-list { display: grid; gap: 10px; padding: 22px 26px; }
+.class-archive-item { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 13px; padding: 15px; border: 1px solid #e1e4ed; border-radius: 16px; background: #fafbfe; }
+.class-archive-icon { display: grid; width: 42px; height: 42px; place-items: center; border-radius: 13px; background: #edf0f6; font-size: 20px; }
+.class-archive-copy strong, .class-archive-copy small { display: block; }
+.class-archive-copy strong { font-size: 13px; }
+.class-archive-copy small { margin-top: 2px; color: var(--muted); font-size: 9px; }
+.class-archive-copy p { margin: 5px 0 0; color: #93611b; font-size: 9px; }
+.class-archive-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.class-archive-empty { padding: 45px 20px; color: var(--muted); text-align: center; }
+.class-archive-empty span { font-size: 38px; }
+.class-archive-empty h3 { margin: 9px 0 3px; color: var(--ink); }
+.class-archive-empty p { margin: 0; font-size: 10px; }
+.class-archive-footer { display: flex; align-items: flex-start; gap: 9px; margin: 0 26px 24px; padding: 13px 15px; border-radius: 13px; color: #765621; background: #fff8e9; }
+.class-archive-footer p { margin: 0; font-size: 9px; line-height: 1.55; }
 .management-form { display: grid; grid-template-columns: 54px 1fr; gap: 16px; padding: 22px 26px; }
 .management-avatar { display: grid; width: 54px; height: 54px; grid-row: 1 / 3; place-items: center; border-radius: 17px; color: #fff; background: linear-gradient(145deg, var(--primary), var(--primary-dark)); font-size: 21px; font-weight: 900; }
 .management-form .field-group, .management-form .login-message, .management-form > .button { grid-column: 2; }
@@ -1578,6 +1609,14 @@ body {
   .workshop-start-hero { min-height: 0; padding: 30px 22px; border-radius: 24px; }
   .workshop-start-copy h2 { font-size: 38px; }
   .workshop-start-copy > p { font-size: 12px; }
+  .class-archive-list { padding: 16px 18px; }
+  .class-archive-item { grid-template-columns: 38px minmax(0, 1fr); align-items: start; padding: 13px; }
+  .class-archive-icon { width: 36px; height: 36px; }
+  .class-archive-actions { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; }
+  .class-archive-actions .button { width: 100%; padding-left: 8px; padding-right: 8px; }
+  .class-management-summary { margin-left: 18px; margin-right: 18px; }
+  .class-management-actions { display: grid; grid-template-columns: 1fr; padding-left: 18px; padding-right: 18px; }
+  .class-management-actions .button { width: 100%; }
   .workshop-start-features { display: grid; gap: 8px; }
   .workshop-start-button { width: 100%; }
   .workshop-program-preview { padding: 18px; }
