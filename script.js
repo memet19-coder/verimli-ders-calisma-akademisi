@@ -54,7 +54,7 @@ const PREVIEW_BLOCKED_ACTIONS = new Set([
   "quiz-option", "activity-choice", "activity-confidence", "activity-day",
   "save-activity-reflection", "select-reading-day", "visit-reading-workshop", "complete-daily-reading", "save-draft", "add-plan-task", "remove-plan-task",
   "clear-plan", "select-theme", "download-student-backup", "reset-data",
-  "start-workshop", "workshop-quiz-option", "save-workshop-draft", "complete-workshop-module"
+  "start-workshop", "workshop-quiz-option", "workshop-challenge-option", "toggle-workshop-mission", "save-workshop-draft", "complete-workshop-module"
 ]);
 
 const TEACHER_TIPS = [
@@ -434,6 +434,61 @@ const WORKSHOP_MODULES = [
   }
 ];
 
+// Her özel ders haftasını yalnızca okunan bir içerik olmaktan çıkarıp
+// karar verme, kavram tekrarı ve günlere yayılan uygulama sürecine dönüştürür.
+const WORKSHOP_EXTRAS = {
+  1: {
+    concepts: [["Belirgin", "Hedef, ne yapacağını açıkça söyler: ‘Matematik çalışacağım’ yerine ‘Kesirlerden 20 soru çözeceğim.’"], ["Ölçülebilir", "İlerlemeni süre, soru sayısı, puan veya tamamlanan görevle görebilirsin."], ["Zaman sınırlı", "Başlangıç ve bitiş tarihi, hedefi ‘bir gün’ düşüncesinden çıkarıp takvime taşır."]],
+    scenario: { title: "Hedefi onarma görevi", text: "Ayça, ‘Bu dönem çok başarılı olacağım.’ diye bir hedef yazdı. İki gün sonra nereden başlayacağını bilemedi.", question: "Ayça’nın hedefini en çok güçlendiren değişiklik hangisidir?", options: ["Hedefi daha büyük yazmak", "Ders, davranış, ölçü ve tarih eklemek", "Her gün farklı bir hedef seçmek"], answer: 1, explanation: "Net davranış, ölçü ve tarih eklendiğinde hedef uygulanabilir bir plana dönüşür." },
+    missions: ["Hedef cümlemi bir yetişkine okuyup anlaşılır olup olmadığını sordum.", "Hedefim için 15–30 dakikalık ilk adımı yaptım.", "Yaptığım çalışmanın sayı veya süresini kaydettim.", "Planımın zor gelen bir bölümünü küçülttüm.", "Hafta sonunda hedefime ne kadar yaklaştığımı değerlendirdim."]
+  },
+  2: {
+    concepts: [["Görsel araç", "Şema, renk ve zihin haritası ilişkileri görünür hâle getirir."], ["İşitsel araç", "Konuyu sesli anlatmak ve soru-cevap yapmak işiterek hatırlamayı destekler."], ["Stratejik esneklik", "Kendini tek bir stile kapatmadan, göreve uygun iki veya daha çok aracı birlikte kullanmaktır."]],
+    scenario: { title: "Doğru aleti seç", text: "Ege, İngilizce kelimeleri yalnızca renkli kâğıtlara yazıyor; kelimeleri gördüğünde biliyor ama duyduğunda tanımıyor.", question: "Ege’nin sonraki deneyi ne olmalıdır?", options: ["Daha fazla renk kullanmak", "Kelimeleri sesli dinleyip söylemeyi kartlarla birleştirmek", "İngilizce çalışmayı bırakmak"], answer: 1, explanation: "Görevin işitsel yönü bulunduğu için görsel kartı sesli tekrar ve dinlemeyle birleştirmek gerekir." },
+    missions: ["Bir konuyu küçük bir şemaya dönüştürdüm.", "Aynı konuyu bir dakika yüksek sesle anlattım.", "Üç bilgi kartı hazırlayıp kendimi sınadım.", "Bir kavramı çizerek, modelleyerek veya hareketle gösterdim.", "Hangi yöntemin hangi derste işe yaradığını karşılaştırdım."]
+  },
+  3: {
+    concepts: [["Odak bloğu", "Başlangıcı ve bitişi belli, tek göreve ayrılmış çalışma süresidir."], ["Gerçek mola", "Beyni yeni uyaranla doldurmak yerine hareket, su ve dinlenmeyle toparlanma aralığıdır."], ["Zaman bloğu", "Ders, mola ve serbest zamanı takvimde görünür bir yere yerleştirir."]],
+    scenario: { title: "25 dakikayı kurtar", text: "Duru, Pomodoro’yu başlatıyor; fakat aynı anda mesajlara bakıyor, müzik listesi seçiyor ve üç derse birden geçiyor.", question: "İlk turu verimli yapmak için en doğru değişiklik hangisidir?", options: ["Zamanlayıcıyı 60 dakikaya çıkarmak", "Tek görev seçip telefonu uzaklaştırmak", "Molayı tamamen kaldırmak"], answer: 1, explanation: "Pomodoro’nun gücü süreden önce tek görev ve kesintisiz odaktan gelir." },
+    missions: ["Birinci 25+5 turumu tamamladım.", "Molamı ekransız geçirdim.", "Aklıma gelen başka işleri park listesine yazdım.", "En zor görevimi enerjimin yüksek olduğu saate koydum.", "Tur sayımı ve tamamlanan işi gün sonunda kaydettim."]
+  },
+  4: {
+    concepts: [["Parkinson ilkesi", "Bir iş, ona verdiğin süre kadar uzayabilir; net sınır oyalanmayı azaltır."], ["Pareto ilkesi", "Sonucun büyük bölümünü az sayıdaki önemli konu veya hata etkileyebilir."], ["Etki-süre eşleşmesi", "Önce en önemli işi seçmek, sonra ona gerçekçi bir süre vermektir."]],
+    scenario: { title: "Öncelik dedektifi", text: "Mina’nın denemesinde 12 yanlışın 7’si paragrafta ana fikir sorularından geliyor. Masasını düzenlemek ve tüm dersleri baştan okumak arasında kararsız.", question: "Pareto’ya göre önce ne yapmalıdır?", options: ["Bütün defter kapaklarını yenilemek", "Ana fikir yanlışlarını inceleyip benzer soru çözmek", "Her derse eşit süre ayırmak"], answer: 1, explanation: "Yanlışların büyük bölümünü oluşturan konuya yönelmek en yüksek etkiyi sağlar." },
+    missions: ["Yanlışlarımı konu veya nedenlerine göre grupladım.", "En yüksek etki sağlayacak tek alanı seçtim.", "Bu alan için net bir bitiş ölçüsü yazdım.", "Göreve gerçekçi bir süre sınırı koydum.", "Süre sonunda etkiyi ve oyalanmayı değerlendirdim."]
+  },
+  5: {
+    concepts: [["Dikkat tetikleyicisi", "Telefon, gürültü, düşünce veya beklenen mesaj gibi odağı başlatan kopuş nedenidir."], ["Dönüş ritüeli", "Kopuşu fark et, kısa nefes al, sıradaki küçük işi söyle ve geri dön."], ["Odak kası", "Hiç dağılmamak değil, her seferinde daha erken fark edip yeniden yönelmektir."]],
+    scenario: { title: "Kopuş anını yönet", text: "Berk sorunun ortasında telefonunu düşünmeye başladı ve on dakikadır aynı satırı okuyordu.", question: "Odak antrenmanına uygun ilk hareket hangisidir?", options: ["Kendine kızıp çalışmayı bırakmak", "Kopuşu işaretleyip telefonu uzaklaştırarak soruya dönmek", "Aynı anda telefona bakıp soruyu çözmek"], answer: 1, explanation: "Kopuşu yargılamadan fark etmek ve çevresel engeli azaltarak geri dönmek odak kasını çalıştırır." },
+    missions: ["Çalışma öncesi dikkat dağıtıcı taraması yaptım.", "Telefonu görüş alanımdan çıkardım.", "Bir dakikalık nefes veya görsel odak egzersizi yaptım.", "Her kopuşu küçük bir işaretle kaydedip geri döndüm.", "Hafta sonunda en sık kopuş nedenimi belirledim."]
+  },
+  6: {
+    concepts: [["Unutma eğrisi", "Yeni bilgi kullanılmadığında hatırlama gücünün zamanla azalmasını gösterir."], ["Aktif hatırlama", "Notu kapatıp bilgiyi zihinden üretmek, anlatmak veya soruya çevirmektir."], ["Aralıklı tekrar", "Aynı bilgiyi giderek açılan zaman aralıklarında yeniden çağırmaktır."]],
+    scenario: { title: "Tekrar takvimini seç", text: "Nehir pazartesi öğrendiği konuyu cuma gününe kadar hiç açmıyor; cuma günü notu üç kez baştan sona okuyor.", question: "Daha kalıcı bir yol hangisidir?", options: ["Aynı okumayı beş kez yapmak", "Aynı gün, 1., 3. ve 7. günlerde bakmadan hatırlamak", "Sadece renkli kalem kullanmak"], answer: 1, explanation: "Bilgiyi aralıklı zamanlarda aktif olarak çağırmak, pasif yeniden okumadan daha güçlü bir iz oluşturur." },
+    missions: ["Notu kapatıp bildiklerimi yazdım.", "Hatırlayamadığım bölümü farklı renkle tamamladım.", "Bir gün sonraki kısa tekrarımı yaptım.", "Üçüncü gün mini test veya bilgi kartı kullandım.", "Yedinci gün konuyu birine anlattım ya da ses kaydı aldım."]
+  },
+  7: {
+    concepts: [["Kilit cümle", "‘Yapamam’ gibi düşünmeyi ve denemeyi durduran iç sestir."], ["Henüz dili", "Becerinin sabit olmadığını ve öğrenme sürecinin devam ettiğini hatırlatır."], ["Eylem komutu", "‘Hata yapma’ yerine ‘Soruyu yavaşça oku’ gibi ne yapacağını söyler."]],
+    scenario: { title: "İç sesi yeniden yaz", text: "Sena iki soruyu yanlış yapınca ‘Ben zaten Türkçede kötüyüm.’ dedi ve üçüncü soruyu boş bıraktı.", question: "Sena’ya en çok yardımcı olacak cümle hangisidir?", options: ["Hiç yanlış yapmamalıyım.", "Bu soru türünü henüz tam çözemedim; kökü yavaşça okuyarak yeniden deneyeceğim.", "Bu ders bana göre değil."], answer: 1, explanation: "Cümle hem gelişimin sürdüğünü hem de uygulanacak sonraki adımı gösterir." },
+    missions: ["Bugün kullandığım bir kilit cümleyi yakaladım.", "Cümleye ‘henüz’ ekleyerek yeniden yazdım.", "Yeni cümleme somut bir eylem ekledim.", "Cümleyi yüksek sesle söyleyip küçük adımı yaptım.", "Hafta sonunda en çok işe yarayan cümlemi seçtim."]
+  },
+  8: {
+    concepts: [["Stres alarmı", "Bedenin tehlikeye hazırlanma tepkisidir; kalp, nefes ve kaslarda hissedilebilir."], ["Yeniden çerçeveleme", "Olumsuz düşünceyi inkâr etmeden daha gerçekçi ve çözüm odaklı biçimde kurmaktır."], ["Motivasyon sistemi", "Anlamlı neden, küçük adım, görünür ilerleme ve destekten oluşur."]],
+    scenario: { title: "Alarmı dengele", text: "Ali sınavdan önce kalbinin hızlandığını fark ediyor ve ‘Böyle hissediyorsam kesin yapamayacağım.’ diye düşünüyor.", question: "En yararlı ilk sıra hangisidir?", options: ["Düşünceyle tartışıp nefesi hızlandırmak", "Nefesi yavaşlatıp düşünceyi gerçekçi bir cümleyle değiştirmek", "Kimseye söylemeden sınavdan kaçmak"], answer: 1, explanation: "Önce bedeni sakinleştirmek, ardından düşünceyi ve davranışı yönetmeyi kolaylaştırır." },
+    missions: ["Stresimin bedensel sinyalini kaydettim.", "Beş tur 4-4-6 nefesi uyguladım.", "Bir kara ses cümlesini beyaz sese çevirdim.", "Hedefim için yalnızca beş dakikalık başlangıç yaptım.", "Zorlandığımda destek isteyeceğim kişiye planımı anlattım."]
+  },
+  9: {
+    concepts: [["Çalışma sistemi", "Motivasyon ve ortam, aktif öğrenme, hafıza ve sınav yönetiminin birlikte işlemesidir."], ["İSOAT", "İzle, sor, oku, anlat ve tekrarla adımlarıyla bilgiyi aktif biçimde işler."], ["Zayıf halka", "Sistemde sonucu en çok sınırlayan ve önce iyileştirilmesi gereken parçadır."]],
+    scenario: { title: "Sistemi tamir et", text: "Zeynep iki saat ders çalışıyor; fakat telefon masada, yalnızca altını çiziyor ve tekrar günü belirlemiyor.", question: "İlk bir haftalık deney için en uygun seçim hangisidir?", options: ["Çalışmayı üç saate çıkarmak", "Telefonu uzaklaştırıp kitabı kapatarak anlatma ve tekrar tarihi eklemek", "Daha fazla fosforlu kalem almak"], answer: 1, explanation: "Sorun süreden çok ortam, aktif öğrenme ve tekrar parçalarındadır." },
+    missions: ["Çalışma sistemimin dört parçasına puan verdim.", "En düşük puanlı tek parçayı seçtim.", "Bir oturumda pasif okumayı aktif anlatmaya çevirdim.", "Bilgi için en az üç tekrar tarihi koydum.", "Deney sonunda önceki ve sonraki durumumu karşılaştırdım."]
+  },
+  10: {
+    concepts: [["Turlama", "Kolay soruları önce çözmek, zorları işaretleyip sonraki tura bırakmaktır."], ["Panik reseti", "Kalemi bırak, nefesi yavaşlat, bedeni gevşet ve önündeki tek soruya dön."], ["Hata analizi", "Yanlışı bilgi, dikkat, işlem, zaman veya strateji nedenine göre ayırmaktır."]],
+    scenario: { title: "Sınav anı kararı", text: "Mert ilk bölümde zor bir soruya takıldı. İki dakika geçti, sonraki sorulara hiç bakmadı ve kaygısı yükselmeye başladı.", question: "Mert şimdi ne yapmalıdır?", options: ["Aynı soruda sınav bitene kadar kalmak", "Soruyu işaretleyip kısa nefesle kolay sorulara geçmek", "Rastgele cevaplayıp sınavı bırakmak"], answer: 1, explanation: "Turlama ve kısa reset, zamanı korur; zor soruya ikinci turda daha sakin dönmeyi sağlar." },
+    missions: ["Sınavdan önceki gün için uyku ve ekipman listesi hazırladım.", "Bir denemede iki turlu soru çözme uyguladım.", "Soru kökündeki kilit ifadeleri işaretledim.", "Bir kez panik reseti provası yaptım.", "Deneme yanlışlarımı nedenlerine göre ayırıp sonraki adımı yazdım."]
+  }
+};
+
 const MODULE_ANECDOTES = {
   1: {
     title: "Deniz’in dolu ajandası",
@@ -794,7 +849,7 @@ function saveData(key, value) {
 }
 
 function createEmptyWorkshopState() {
-  return { startedAt: null, answers: {}, checks: {}, quizzes: {}, completed: {}, lastActivity: null };
+  return { startedAt: null, answers: {}, checks: {}, quizzes: {}, challenges: {}, missions: {}, completed: {}, lastActivity: null };
 }
 
 function normalizeWorkshopState(value) {
@@ -804,6 +859,8 @@ function normalizeWorkshopState(value) {
     answers: source.answers && typeof source.answers === "object" ? source.answers : {},
     checks: source.checks && typeof source.checks === "object" ? source.checks : {},
     quizzes: source.quizzes && typeof source.quizzes === "object" ? source.quizzes : {},
+    challenges: source.challenges && typeof source.challenges === "object" ? source.challenges : {},
+    missions: source.missions && typeof source.missions === "object" ? source.missions : {},
     completed: source.completed && typeof source.completed === "object" ? source.completed : {},
     lastActivity: source.lastActivity || null
   };
@@ -1466,6 +1523,8 @@ function enforceStudentPreviewReadOnly() {
     '[data-action="reset-data"]'
     ,'[data-action="start-workshop"]'
     ,'[data-action="workshop-quiz-option"]'
+    ,'[data-action="workshop-challenge-option"]'
+    ,'[data-action="toggle-workshop-mission"]'
     ,'[data-action="save-workshop-draft"]'
     ,'[data-action="complete-workshop-module"]'
   ].join(",")).forEach(button => { button.disabled = true; });
@@ -1883,11 +1942,16 @@ function getWorkshopNextModule(workshop = state.workshop) {
 function getWorkshopModuleProgress(module, workshop = state.workshop) {
   const data = normalizeWorkshopState(workshop);
   if (data.completed[module.id]) return 100;
+  const extra = WORKSHOP_EXTRAS[module.id];
   const values = data.answers[module.id]?.values || {};
   const filled = module.fields.filter(field => String(values[field[0]] || "").trim()).length;
   const checked = (data.checks[module.id] || []).filter(Boolean).length;
   const quizPoint = Number.isInteger(data.quizzes[module.id]?.selected) ? 1 : 0;
-  return Math.round(((filled + checked + quizPoint) / (module.fields.length + module.checks.length + 1)) * 100);
+  const challengePoint = Number.isInteger(data.challenges[module.id]?.selected) ? 1 : 0;
+  const missionCount = (data.missions[module.id] || []).filter(Boolean).length;
+  const missionTotal = extra?.missions?.length || 0;
+  const total = module.fields.length + module.checks.length + missionTotal + 2;
+  return Math.round(((filled + checked + missionCount + quizPoint + challengePoint) / total) * 100);
 }
 
 function renderWorkshopHomeCard() {
@@ -1929,7 +1993,7 @@ function renderWorkshop() {
       const status = getWorkshopModuleStatus(module.id, workshop);
       const progress = getWorkshopModuleProgress(module, workshop);
       const locked = status.className === "locked";
-      return `<article class="workshop-module-card ${status.className}"><div class="workshop-module-top"><span class="workshop-week-number">${status.className === "completed" ? "✓" : module.id}</span><span class="status-pill ${status.className}">${locked ? "🔒 " : ""}${status.label}</span></div><div class="workshop-module-icon">${module.icon}</div><small>${module.id}. HAFTA • ${formatWorkshopSchedule(module.id, workshop)}</small><h3>${module.title}</h3><p>${module.short}</p><div class="workshop-card-progress"><span><i style="width:${progress}%"></i></span><small>%${progress}</small></div>${locked ? `<button class="button ghost" type="button" disabled>${formatWorkshopSchedule(module.id, workshop)} tarihinde açılır</button>` : `<button class="button ${status.className === "completed" ? "secondary" : "primary"}" type="button" data-action="open-workshop-module" data-workshop-module-id="${module.id}">${status.className === "completed" ? "Yeniden İncele" : "Haftayı Aç"} →</button>`}</article>`;
+      return `<article class="workshop-module-card ${status.className}"><div class="workshop-module-top"><span class="workshop-week-number">${status.className === "completed" ? "✓" : module.id}</span><span class="status-pill ${status.className}">${locked ? "🔒 " : ""}${status.label}</span></div><div class="workshop-module-icon">${module.icon}</div><small>${module.id}. HAFTA • ${formatWorkshopSchedule(module.id, workshop)}</small><h3>${module.title}</h3><p>${module.short}</p><div class="workshop-card-features"><span>🗂️ 3 kart</span><span>🧭 1 senaryo</span><span>🚀 5 görev</span></div><div class="workshop-card-progress"><span><i style="width:${progress}%"></i></span><small>%${progress}</small></div>${locked ? `<button class="button ghost" type="button" disabled>${formatWorkshopSchedule(module.id, workshop)} tarihinde açılır</button>` : `<button class="button ${status.className === "completed" ? "secondary" : "primary"}" type="button" data-action="open-workshop-module" data-workshop-module-id="${module.id}">${status.className === "completed" ? "Yeniden İncele" : "Haftayı Aç"} →</button>`}</article>`;
     }).join("")}</div></section>`;
 }
 
@@ -1942,6 +2006,40 @@ function renderWorkshopQuiz(module) {
     const optionClass = answered && index === quiz.answer ? "correct" : answered && index === selected ? "wrong" : "";
     return `<button class="quiz-option ${optionClass}" type="button" data-action="workshop-quiz-option" data-workshop-module-id="${module.id}" data-option-index="${index}" aria-pressed="${selected === index}"><span>${String.fromCharCode(65 + index)}</span><b>${option}</b>${optionClass === "correct" ? "<i>✓</i>" : optionClass === "wrong" ? "<i>×</i>" : ""}</button>`;
   }).join("")}</div><div class="quiz-feedback ${answered ? `show ${isCorrect ? "success" : "retry"}` : ""}">${answered ? `<strong>${isCorrect ? "Harika, yöntemi yakaladın!" : "Güzel bir deneme. İpucuna bakalım:"}</strong><p>${quiz.explanation}</p>` : ""}</div></section>`;
+}
+
+function renderWorkshopLearningRoute(progress) {
+  const route = [["1", "Hatırla"], ["2", "Kavramları aç"], ["3", "Karar ver"], ["4", "Gün gün dene"], ["5", "Kendini sına"], ["6", "Planla"]];
+  const activeIndex = Math.min(route.length - 1, Math.floor((Math.max(0, progress) / 100) * route.length));
+  return route.map((step, index) => {
+    const done = progress >= 100 || index < activeIndex;
+    const active = !done && index === activeIndex;
+    return `<div class="route-step ${done ? "done" : active ? "active" : ""}"><span>${done ? "✓" : step[0]}</span><b>${step[1]}</b>${index < route.length - 1 ? "<i></i>" : ""}</div>`;
+  }).join("");
+}
+
+function renderWorkshopConceptCards(module) {
+  const concepts = WORKSHOP_EXTRAS[module.id]?.concepts || [];
+  return `<section class="content-section workshop-concepts"><div class="workshop-rich-heading"><div><span class="section-tag">KAVRAM KARTLARI</span><h3>🗂️ Aç, hatırla ve kendi cümlenle anlat</h3><p>Karta dokunmadan önce açıklamayı tahmin et. Sonra kartı açıp cevabını karşılaştır.</p></div><span>${concepts.length} kart</span></div><div class="workshop-concept-grid">${concepts.map((concept, index) => `<details class="workshop-concept-card"><summary><i>${index + 1}</i><strong>${escapeHTML(concept[0])}</strong><span>Gör +</span></summary><p>${escapeHTML(concept[1])}</p></details>`).join("")}</div></section>`;
+}
+
+function renderWorkshopChallenge(module) {
+  const scenario = WORKSHOP_EXTRAS[module.id]?.scenario;
+  if (!scenario) return "";
+  const selected = state.workshop.challenges[module.id]?.selected;
+  const answered = Number.isInteger(selected);
+  const isCorrect = selected === scenario.answer;
+  return `<section class="content-section workshop-challenge" id="workshop-challenge-${module.id}"><div class="workshop-rich-heading"><div><span class="section-tag">KARAR VERME SENARYOSU</span><h3>🧭 ${escapeHTML(scenario.title)}</h3></div><span>1 karar</span></div><div class="workshop-scenario-copy"><p>${escapeHTML(scenario.text)}</p><strong>${escapeHTML(scenario.question)}</strong></div><div class="workshop-challenge-options">${scenario.options.map((option, index) => {
+    const optionClass = answered && index === scenario.answer ? "correct" : answered && index === selected ? "wrong" : "";
+    return `<button class="workshop-challenge-option ${optionClass}" type="button" data-action="workshop-challenge-option" data-workshop-module-id="${module.id}" data-option-index="${index}" aria-pressed="${selected === index}"><span>${String.fromCharCode(65 + index)}</span><b>${escapeHTML(option)}</b>${optionClass === "correct" ? "<i>✓</i>" : optionClass === "wrong" ? "<i>×</i>" : ""}</button>`;
+  }).join("")}</div><div class="workshop-challenge-feedback ${answered ? `show ${isCorrect ? "success" : "retry"}` : ""}">${answered ? `<strong>${isCorrect ? "İyi karar!" : "Bu seçeneği düşünmen güzel. Şimdi ipucuna bak:"}</strong><p>${escapeHTML(scenario.explanation)}</p>` : ""}</div></section>`;
+}
+
+function renderWorkshopMissions(module) {
+  const missions = WORKSHOP_EXTRAS[module.id]?.missions || [];
+  const saved = state.workshop.missions[module.id] || [];
+  const completed = saved.filter(Boolean).length;
+  return `<section class="content-section workshop-missions" id="workshop-missions-${module.id}"><div class="workshop-rich-heading"><div><span class="section-tag">5 GÜNLÜK PEKİŞTİRME</span><h3>🚀 Bilgiyi küçük davranışlara dönüştür</h3><p>Her gün yalnızca bir mini görev seç. Yaptığında işaretle; beş küçük kanıt bir haftalık gelişimi görünür kılar.</p></div><span>${completed}/${missions.length}</span></div><div class="workshop-mission-progress"><i style="width:${missions.length ? Math.round(completed / missions.length * 100) : 0}%"></i></div><div class="workshop-mission-list">${missions.map((mission, index) => `<button class="workshop-mission-item ${saved[index] ? "done" : ""}" type="button" data-action="toggle-workshop-mission" data-workshop-module-id="${module.id}" data-mission-index="${index}" aria-pressed="${Boolean(saved[index])}"><span>${saved[index] ? "✓" : index + 1}</span><div><small>${index + 1}. MİNİ GÖREV</small><strong>${escapeHTML(mission)}</strong></div></button>`).join("")}</div></section>`;
 }
 
 function renderWorkshopModuleDetail(moduleId) {
@@ -1959,9 +2057,9 @@ function renderWorkshopModuleDetail(moduleId) {
   const previous = WORKSHOP_MODULES[currentIndex - 1];
   const next = WORKSHOP_MODULES[currentIndex + 1];
   const nextOpen = next && getWorkshopModuleStatus(next.id).className !== "locked";
-  main.innerHTML = `<article class="module-detail workshop-detail"><button class="button ghost small back-button" type="button" data-action="back-workshop">← Atölye programım</button><header class="workshop-module-banner"><div><span class="section-tag">VERİMLİ ÇALIŞMA ATÖLYESİ • ${module.id}. HAFTA</span><h2>${module.icon} ${module.title}</h2><p>${module.short}</p><div class="workshop-banner-meta"><span>📅 ${formatWorkshopSchedule(module.id)}</span><span>✏️ ${module.fields.length} uygulama sorusu</span><span>✓ ${module.checks.length} kontrol adımı</span></div></div><div class="workshop-progress-orbit"><strong>%${progress}</strong><small>HAFTA İLERLEMESİ</small></div></header>
-    <nav class="learning-route workshop-route" aria-label="Atölye tekrar ve uygulama rotası">${[["1", "Hatırla"], ["2", "Tekrar et"], ["3", "Örneği incele"], ["4", "Kendini sına"], ["5", "Uygula"]].map((step, index) => `<div class="route-step ${progress >= (index + 1) * 20 ? "done" : index === 0 ? "active" : ""}"><span>${progress >= (index + 1) * 20 ? "✓" : step[0]}</span><b>${step[1]}</b>${index < 4 ? "<i></i>" : ""}</div>`).join("")}</nav>
-    <section class="content-section workshop-why"><div class="workshop-section-label">01</div><div><span class="section-tag">KONUYU HATIRLA</span><h3>${module.title}</h3><p>${module.description}</p></div></section><section class="content-section goal-box"><h3><span>🎯</span> Bu tekrarda neyi güçlendireceksin?</h3><p>${module.goal}</p></section><section class="content-section"><h3><span>🔁</span> Kısa tekrar: üç temel nokta</h3><div class="lesson-points">${module.lesson.map(point => `<div class="lesson-point"><span>${point[0]}</span><strong>${point[1]}</strong><p>${point[2]}</p></div>`).join("")}</div></section><section class="content-section method-section"><div class="section-number">02</div><div class="section-copy"><span class="section-tag">TEKRARDAN UYGULAMAYA</span><h3><span>🪜</span> Adımları yeniden uygula</h3><div class="method-steps">${module.steps.map((step, index) => `<div class="method-step"><span>${index + 1}</span><p>${step}</p></div>`).join("")}</div></div></section><section class="content-section story-box anecdote-box workshop-story"><div class="anecdote-heading"><span class="anecdote-icon">📖</span><div><span class="section-tag">KONUYU PEKİŞTİREN HİKÂYE</span><h3>${module.story.title}</h3></div></div><div class="anecdote-body">${module.story.paragraphs.map((paragraph, index) => `<p><span>${index + 1}</span>${paragraph}</p>`).join("")}</div><div class="anecdote-takeaway"><span>💡</span><p><strong>Aklında kalsın:</strong>${module.story.takeaway}</p></div></section>${renderWorkshopQuiz(module)}<section class="content-section task-box workshop-task"><h3><span>🧪</span> Şimdi sen dene</h3><p>${module.task}</p></section>
+  main.innerHTML = `<article class="module-detail workshop-detail"><button class="button ghost small back-button" type="button" data-action="back-workshop">← Atölye programım</button><header class="workshop-module-banner"><div><span class="section-tag">VERİMLİ ÇALIŞMA ATÖLYESİ • ${module.id}. HAFTA</span><h2>${module.icon} ${module.title}</h2><p>${module.short}</p><div class="workshop-banner-meta"><span>📅 ${formatWorkshopSchedule(module.id)}</span><span>🗂️ 3 kavram kartı</span><span>🧭 1 karar senaryosu</span><span>🚀 5 mini görev</span><span>✏️ ${module.fields.length} uygulama sorusu</span></div></div><div class="workshop-progress-orbit"><strong>%${progress}</strong><small>HAFTA İLERLEMESİ</small></div></header>
+    <nav class="learning-route workshop-route" aria-label="Atölye tekrar ve uygulama rotası">${renderWorkshopLearningRoute(progress)}</nav>
+    <section class="content-section workshop-why"><div class="workshop-section-label">01</div><div><span class="section-tag">KONUYU HATIRLA</span><h3>${module.title}</h3><p>${module.description}</p></div></section><section class="content-section goal-box"><h3><span>🎯</span> Bu tekrarda neyi güçlendireceksin?</h3><p>${module.goal}</p></section><section class="content-section"><h3><span>🔁</span> Kısa tekrar: üç temel nokta</h3><div class="lesson-points">${module.lesson.map(point => `<div class="lesson-point"><span>${point[0]}</span><strong>${point[1]}</strong><p>${point[2]}</p></div>`).join("")}</div></section>${renderWorkshopConceptCards(module)}<section class="content-section method-section"><div class="section-number">02</div><div class="section-copy"><span class="section-tag">TEKRARDAN UYGULAMAYA</span><h3><span>🪜</span> Adımları yeniden uygula</h3><div class="method-steps">${module.steps.map((step, index) => `<div class="method-step"><span>${index + 1}</span><p>${step}</p></div>`).join("")}</div></div></section><section class="content-section story-box anecdote-box workshop-story"><div class="anecdote-heading"><span class="anecdote-icon">📖</span><div><span class="section-tag">KONUYU PEKİŞTİREN HİKÂYE</span><h3>${module.story.title}</h3></div></div><div class="anecdote-body">${module.story.paragraphs.map((paragraph, index) => `<p><span>${index + 1}</span>${paragraph}</p>`).join("")}</div><div class="anecdote-takeaway"><span>💡</span><p><strong>Aklında kalsın:</strong>${module.story.takeaway}</p></div></section>${renderWorkshopChallenge(module)}${renderWorkshopMissions(module)}${renderWorkshopQuiz(module)}<section class="content-section task-box workshop-task"><h3><span>🧪</span> Şimdi sen dene</h3><p>${module.task}</p></section>
     <form class="module-form workshop-form" id="workshop-module-form" data-workshop-module-id="${module.id}" novalidate><section class="content-section"><h3><span>✏️</span> Uygulama notlarım</h3><p class="workshop-form-intro">Derste öğrendiklerini kendi durumuna uyarlayarak yanıtla. Yazdıkların gelişim dosyana kaydedilir.</p>${module.fields.map(field => renderField(field, answerRecord[field[0]])).join("")}</section><section class="content-section"><h3><span>✅</span> Pekiştirme kontrolüm</h3><div class="check-list">${module.checks.map((label, index) => `<label class="check-item"><input type="checkbox" name="workshop-check-${index}" ${savedChecks[index] ? "checked" : ""}><span>${label}</span></label>`).join("")}</div></section><div id="workshop-module-message" class="helper-message" role="alert"></div><div class="form-actions"><button class="button ghost" type="button" data-action="save-workshop-draft">Taslağı Kaydet</button><button class="button primary workshop-complete-button" type="submit">${state.workshop.completed[module.id] ? "Notlarımı Güncelle" : "Tekrarı Tamamla"} ✨</button></div></form>
     <nav class="module-footer-nav">${previous ? `<button class="module-jump previous" type="button" data-action="open-workshop-module" data-workshop-module-id="${previous.id}"><span>← Önceki hafta</span><strong>${previous.title}</strong></button>` : "<div></div>"}${nextOpen ? `<button class="module-jump next" type="button" data-action="open-workshop-module" data-workshop-module-id="${next.id}"><span>Sonraki hafta →</span><strong>${next.title}</strong></button>` : next ? `<div class="workshop-next-locked"><span>🔒 Sonraki hafta</span><strong>${formatWorkshopSchedule(next.id)} tarihinde açılır</strong></div>` : `<button class="module-jump next" type="button" data-action="back-workshop"><span>Program sonucu →</span><strong>10 Haftalık Rotam</strong></button>`}</nav></article>`;
 }
@@ -2006,6 +2104,18 @@ function completeWorkshopModule(form) {
     form.elements[emptyField[0]].focus();
     return;
   }
+  if (!Number.isInteger(state.workshop.challenges[module.id]?.selected)) {
+    showWorkshopMessage("Haftayı tamamlamadan önce karar verme senaryosunda bir seçenek dene.");
+    document.querySelector(`#workshop-challenge-${module.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    return;
+  }
+  const weeklyMissions = WORKSHOP_EXTRAS[module.id]?.missions || [];
+  const completedMissions = (state.workshop.missions[module.id] || []).filter(Boolean).length;
+  if (completedMissions < weeklyMissions.length) {
+    showWorkshopMessage(`Beş günlük pekiştirme alanında ${weeklyMissions.length - completedMissions} küçük görev daha bekliyor.`);
+    document.querySelector(`#workshop-missions-${module.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    return;
+  }
   if (!Number.isInteger(state.workshop.quizzes[module.id]?.selected)) {
     showWorkshopMessage("Haftayı tamamlamadan önce mini bilgi kontrolündeki bir seçeneği dene.");
     document.querySelector(`#workshop-quiz-${module.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -2035,6 +2145,33 @@ function handleWorkshopQuiz(moduleId, selected) {
   const element = document.querySelector(`#workshop-quiz-${module.id}`);
   if (element) element.outerHTML = renderWorkshopQuiz(module);
   if (selected === module.quiz.answer) showToast("Doğru cevap! Bu haftanın ana fikrini yakaladın. 🌟");
+}
+
+function handleWorkshopChallenge(moduleId, selected) {
+  const module = WORKSHOP_MODULES.find(item => item.id === Number(moduleId));
+  const scenario = WORKSHOP_EXTRAS[module?.id]?.scenario;
+  if (!module || !scenario || !Number.isInteger(selected)) return;
+  const now = new Date().toISOString();
+  state.workshop.challenges[module.id] = { selected, answeredAt: now };
+  state.workshop.lastActivity = now;
+  saveWorkshopState();
+  const element = document.querySelector(`#workshop-challenge-${module.id}`);
+  if (element) element.outerHTML = renderWorkshopChallenge(module);
+  if (selected === scenario.answer) showToast("Senaryodaki en güçlü kararı buldun. 🧭");
+}
+
+function toggleWorkshopMission(moduleId, missionIndex) {
+  const module = WORKSHOP_MODULES.find(item => item.id === Number(moduleId));
+  const missions = WORKSHOP_EXTRAS[module?.id]?.missions || [];
+  if (!module || !Number.isInteger(missionIndex) || !missions[missionIndex]) return;
+  const current = Array.isArray(state.workshop.missions[module.id]) ? [...state.workshop.missions[module.id]] : [];
+  current[missionIndex] = !current[missionIndex];
+  state.workshop.missions[module.id] = current;
+  state.workshop.lastActivity = new Date().toISOString();
+  saveWorkshopState();
+  const element = document.querySelector(`#workshop-missions-${module.id}`);
+  if (element) element.outerHTML = renderWorkshopMissions(module);
+  if (current[missionIndex]) showToast(`${missionIndex + 1}. mini görev tamamlandı. Küçük adım, gerçek ilerleme! ✓`);
 }
 
 function renderModules() {
@@ -2794,14 +2931,18 @@ function getRemoteWorkshop(student) {
 function inspectTeacherWorkshopModule(moduleId) {
   const module = WORKSHOP_MODULES.find(item => item.id === Number(moduleId));
   if (!module) return;
+  const extra = WORKSHOP_EXTRAS[module.id];
   document.querySelector("#teacher-workshop-preview")?.remove();
   const story = module.story || { title: "Günlük hayattan bir örnek", paragraphs: [], takeaway: "" };
   teacherContent.insertAdjacentHTML("beforeend", `<div class="teacher-modal management-modal" id="teacher-workshop-preview"><div class="teacher-modal-backdrop" data-action="close-workshop-preview"></div><article class="management-dialog workshop-preview-dialog" role="dialog" aria-modal="true" aria-labelledby="workshop-preview-title"><header class="management-header workshop-preview-header"><div><span class="section-tag">${module.id}. HAFTA • İÇERİK ÖNİZLEMESİ</span><h2 id="workshop-preview-title">${module.icon} ${escapeHTML(module.title)}</h2><p>Dersten sonra kullanılacak tekrar, hatırlama ve uygulama akışının tamamı.</p></div><button class="modal-close" type="button" data-action="close-workshop-preview" aria-label="Önizlemeyi kapat">×</button></header><div class="module-preview-body workshop-preview-body">
-    <div class="module-preview-lead workshop-preview-lead"><span>${module.icon}</span><div><strong>${escapeHTML(module.short)}</strong><small>${module.lesson.length} kısa tekrar kartı • ${module.steps.length} uygulama adımı • ${module.fields.length} çalışma sorusu • ${module.checks.length} kontrol maddesi</small></div></div>
+    <div class="module-preview-lead workshop-preview-lead"><span>${module.icon}</span><div><strong>${escapeHTML(module.short)}</strong><small>${module.lesson.length} kısa tekrar • ${extra.concepts.length} kavram kartı • 1 karar senaryosu • ${extra.missions.length} günlük görev • ${module.fields.length} uygulama sorusu</small></div></div>
     <section><span class="workshop-preview-kicker">KONUYU HATIRLA</span><h3>${escapeHTML(module.goal)}</h3><p>${escapeHTML(module.description)}</p></section>
     <section><span class="workshop-preview-kicker">KISA TEKRAR • ÜÇ TEMEL NOKTA</span><div class="workshop-preview-lesson-grid">${module.lesson.map(item => `<article><span>${item[0]}</span><div><strong>${escapeHTML(item[1])}</strong><p>${escapeHTML(item[2])}</p></div></article>`).join("")}</div></section>
+    <section><span class="workshop-preview-kicker">AÇILIR KAVRAM KARTLARI</span><div class="workshop-preview-lesson-grid">${extra.concepts.map((item, index) => `<article><span>${index + 1}</span><div><strong>${escapeHTML(item[0])}</strong><p>${escapeHTML(item[1])}</p></div></article>`).join("")}</div></section>
     <section><span class="workshop-preview-kicker">TEKRARDAN UYGULAMAYA</span><ol class="workshop-preview-steps">${module.steps.map(step => `<li>${escapeHTML(step)}</li>`).join("")}</ol></section>
     <section class="workshop-preview-story"><span class="workshop-preview-kicker">DÜŞÜNDÜREN ANEKDOT</span><h3>${escapeHTML(story.title)}</h3>${(story.paragraphs || []).map(paragraph => `<p>${escapeHTML(paragraph)}</p>`).join("")}<blockquote>${escapeHTML(story.takeaway || "")}</blockquote></section>
+    <section class="workshop-preview-task"><span class="workshop-preview-kicker">KARAR VERME SENARYOSU</span><h3>${escapeHTML(extra.scenario.title)}</h3><p>${escapeHTML(extra.scenario.text)}</p><p><strong>${escapeHTML(extra.scenario.question)}</strong></p><ol>${extra.scenario.options.map((option, index) => `<li>${escapeHTML(option)}${index === extra.scenario.answer ? " ✓" : ""}</li>`).join("")}</ol><small>${escapeHTML(extra.scenario.explanation)}</small></section>
+    <section><span class="workshop-preview-kicker">5 GÜNLÜK PEKİŞTİRME ROTASI</span><ol class="workshop-preview-steps">${extra.missions.map(mission => `<li>${escapeHTML(mission)}</li>`).join("")}</ol></section>
     <section class="workshop-preview-task"><span class="workshop-preview-kicker">ŞİMDİ SEN DENE</span><h3>Pekiştirme çalışması</h3><p>${escapeHTML(module.task)}</p></section>
     <section><span class="workshop-preview-kicker">UYGULAMA SORULARI</span><div class="workshop-preview-question-list">${module.fields.map((field, index) => `<article><span>${index + 1}</span><div><strong>${escapeHTML(field[1])}</strong><small>${escapeHTML(field[3] || "Kısa bir cevap yaz.")}</small></div></article>`).join("")}</div></section>
     <section><span class="workshop-preview-kicker">PEKİŞTİRME KONTROLÜ</span><ul class="workshop-preview-checks">${module.checks.map(check => `<li><span>□</span>${escapeHTML(check)}</li>`).join("")}</ul></section>
@@ -2842,7 +2983,7 @@ function renderTeacherWorkshopTracking() {
         return `<article class="teacher-workshop-student ${workshop.startedAt ? "started" : "waiting"} ${overdue.length ? "has-overdue" : ""}"><span class="teacher-workshop-avatar">${escapeHTML(student.name.charAt(0).toLocaleUpperCase("tr-TR"))}</span><div class="teacher-workshop-student-name"><strong>${escapeHTML(student.name)}</strong><small>${workshop.startedAt ? `${startedAt} tarihinde başladı${overdue.length ? ` • ⚠ ${overdue.length} geçmiş hafta eksik` : ""}` : "Atölyeyi henüz başlatmadı"}</small></div><div class="teacher-workshop-week"><small>PROGRAM HAFTASI</small><strong>${workshop.startedAt ? `${week} / 10` : "—"}</strong></div><div class="teacher-workshop-meter"><span><i style="width:${completed * 10}%"></i></span><strong>${completed}/10 tamamlandı</strong><small>${last}</small></div><div class="teacher-workshop-dots">${WORKSHOP_MODULES.map(module => `<i class="${workshop.completed[module.id] ? "done" : module.id === week && workshop.startedAt ? "current" : module.id < week && workshop.startedAt ? "missed" : module.id > week || !workshop.startedAt ? "locked" : ""}" title="${module.id}. ${escapeHTML(module.title)}">${workshop.completed[module.id] ? "✓" : module.id}</i>`).join("")}</div><div class="teacher-workshop-row-actions"><button class="button ghost small" type="button" data-action="view-student" data-student-id="${student.id}">Gelişim →</button><button class="manage-student-button" type="button" data-action="manage-student" data-student-id="${student.id}" aria-label="${escapeHTML(student.name)} adlı atölye öğrencisini yönet" title="Öğrenciyi düzenle">•••</button></div></article>`;
       }).join("")}</div>` : `<div class="teacher-empty-class compact workshop-empty-roster"><span>🧭</span><h2>Henüz atölye öğrencisi eklenmedi</h2><p>Yukarıdaki formdan ilk özel ders öğrencinizi ekleyin. Kamp öğrencileri burada gösterilmez.</p></div>`}
     </section>
-    <section class="teacher-workshop-curriculum"><div class="section-heading"><div><span class="section-tag">10 HAFTALIK DERS AKIŞI</span><h2>Tekrar ve uygulama içerikleri</h2><p>Bir haftanın kısa tekrarını, örneğini, pekiştirme çalışmasını ve uygulama sorularını görmek için karttaki <strong>İçeriği İncele</strong> düğmesine basın.</p></div></div><div class="teacher-workshop-curriculum-grid">${WORKSHOP_MODULES.map(module => `<article><span>${module.icon}</span><div><small>${module.id}. HAFTA</small><strong>${module.title}</strong><p>${module.short}</p><button class="button ghost small" type="button" data-action="inspect-workshop-module" data-workshop-module-id="${module.id}" aria-label="${module.id}. hafta ${escapeHTML(module.title)} içeriğini incele">İçeriği İncele →</button></div></article>`).join("")}</div></section></section>`;
+    <section class="teacher-workshop-curriculum"><div class="section-heading"><div><span class="section-tag">10 HAFTALIK DERS AKIŞI</span><h2>Tekrar ve uygulama içerikleri</h2><p>Her hafta kısa tekrarın yanında kavram kartları, karar senaryosu, beş günlük pekiştirme rotası, mini bilgi kontrolü ve kişisel uygulama alanı içerir.</p></div></div><div class="teacher-workshop-curriculum-grid">${WORKSHOP_MODULES.map(module => `<article><span>${module.icon}</span><div><small>${module.id}. HAFTA</small><strong>${module.title}</strong><p>${module.short}</p><div class="teacher-workshop-content-count"><b>3 kavram</b><b>1 senaryo</b><b>5 görev</b><b>${module.fields.length} soru</b></div><button class="button ghost small" type="button" data-action="inspect-workshop-module" data-workshop-module-id="${module.id}" aria-label="${module.id}. hafta ${escapeHTML(module.title)} içeriğini incele">İçeriği İncele →</button></div></article>`).join("")}</div></section></section>`;
 }
 
 function renderTeacherDashboard() {
@@ -3143,9 +3284,13 @@ function openStudentPdfReport(studentId) {
   const workshopRows = metrics.workshop.startedAt ? WORKSHOP_MODULES.map(module => {
     const completed = Boolean(metrics.workshop.completed[module.id]);
     const answered = Boolean(metrics.workshop.answers[module.id]);
+    const missionCount = (metrics.workshop.missions[module.id] || []).filter(Boolean).length;
+    const decisionMade = Number.isInteger(metrics.workshop.challenges[module.id]?.selected);
     const locked = module.id > metrics.workshopWeek;
-    const status = completed ? "Tamamlandı" : locked ? "Zamanı gelmedi" : answered ? "Devam ediyor" : "Başlanmadı";
-    return `<tr><td><strong>${module.id}. Hafta</strong><small>${escapeHTML(formatWorkshopSchedule(module.id, metrics.workshop))}</small></td><td>${module.icon} ${escapeHTML(module.title)}</td><td>${status}</td><td>${answered ? `${Object.values(metrics.workshop.answers[module.id].values || {}).filter(value => String(value || "").trim()).length} cevap` : "—"}</td></tr>`;
+    const started = answered || missionCount > 0 || decisionMade;
+    const status = completed ? "Tamamlandı" : locked ? "Zamanı gelmedi" : started ? "Devam ediyor" : "Başlanmadı";
+    const evidence = [`${missionCount}/5 mini görev`, decisionMade ? "Karar senaryosu tamam" : "Karar senaryosu bekliyor", answered ? `${Object.values(metrics.workshop.answers[module.id].values || {}).filter(value => String(value || "").trim()).length} cevap` : "Cevap yok"];
+    return `<tr><td><strong>${module.id}. Hafta</strong><small>${escapeHTML(formatWorkshopSchedule(module.id, metrics.workshop))}</small></td><td>${module.icon} ${escapeHTML(module.title)}</td><td>${status}</td><td>${evidence.join("<br>")}</td></tr>`;
   }).join("") : "";
   const answerSections = MODULES.map(module => {
     const answer = payload.answers?.[module.id];
@@ -3223,7 +3368,7 @@ function renderTeacherStudentDetail(studentId) {
         return `<article class="teacher-day-card ${isToday ? "today" : ""} ${day.reading ? (day.late ? "late" : "done") : ""}"><div class="teacher-day-heading"><span>${escapeHTML(labels.weekday)}</span><strong>${escapeHTML(labels.date)}</strong>${isToday ? "<small>BUGÜN</small>" : ""}</div><div class="teacher-day-signals"><span class="${day.login ? "yes" : isFuture ? "waiting" : "no"}">${day.login ? "✓ Giriş yaptı" : isFuture ? "• Bekleniyor" : "— Giriş yapmadı"}</span><span class="${day.reading ? (day.late ? "late" : "yes") : isFuture ? "waiting" : "no"}">${day.reading ? (day.late ? `↺ 5 paragraf telafi edildi${day.readingEntry?.completedAt ? ` (${formatDate(day.readingEntry.completedAt)})` : ""}` : "✓ 5 paragraf okudu") : isFuture ? "• Okuma bekleniyor" : "— Okuma yapmadı"}</span></div></article>`;
       }).join("")}</div></section>
       <section class="detail-section"><div class="detail-title"><div><span class="section-tag">MODÜLLER</span><h3>Beceri gelişimi</h3></div></div><div class="detail-module-grid">${MODULES.map(module => `<div class="detail-module ${completedIds.includes(module.id) ? "done" : answeredModules.some(([id]) => Number(id) === module.id) ? "progress" : ""}"><span>${completedIds.includes(module.id) ? "✓" : module.icon}</span><div><small>${module.id}. Hafta</small><strong>${module.title}</strong></div></div>`).join("")}</div></section>
-      ${workshopStudent ? `<section class="detail-section teacher-workshop-detail"><div class="detail-title"><div><span class="section-tag">VERİMLİ ÇALIŞMA ATÖLYESİ</span><h3>Özel ders programı</h3><p>${workshop.startedAt ? `${formatDate(workshop.startedAt)} tarihinde başladı • Şu anda ${workshopWeek}. program haftası` : "Öğrenci bu ayrı programa henüz başlamadı."}</p></div><strong>${workshopCompletedIds.length}/10 hafta</strong></div><div class="detail-workshop-route">${WORKSHOP_MODULES.map(module => `<div class="detail-workshop-week ${workshop.completed[module.id] ? "done" : workshop.startedAt && module.id === workshopWeek ? "current" : !workshop.startedAt || module.id > workshopWeek ? "locked" : workshop.answers[module.id] ? "progress" : ""}"><span>${workshop.completed[module.id] ? "✓" : module.icon}</span><div><small>${module.id}. HAFTA${workshop.startedAt ? ` • ${formatWorkshopSchedule(module.id, workshop)}` : ""}</small><strong>${module.title}</strong>${workshop.answers[module.id] ? `<p>${Object.values(workshop.answers[module.id].values || {}).filter(value => String(value || "").trim()).length} cevap kaydedildi</p>` : ""}</div></div>`).join("")}</div>${workshopAnswers.length ? `<div class="answer-accordion workshop-answer-accordion">${workshopAnswers.map(([id, record]) => {
+      ${workshopStudent ? `<section class="detail-section teacher-workshop-detail"><div class="detail-title"><div><span class="section-tag">VERİMLİ ÇALIŞMA ATÖLYESİ</span><h3>Özel ders programı</h3><p>${workshop.startedAt ? `${formatDate(workshop.startedAt)} tarihinde başladı • Şu anda ${workshopWeek}. program haftası` : "Öğrenci bu ayrı programa henüz başlamadı."}</p></div><strong>${workshopCompletedIds.length}/10 hafta</strong></div><div class="detail-workshop-route">${WORKSHOP_MODULES.map(module => `<div class="detail-workshop-week ${workshop.completed[module.id] ? "done" : workshop.startedAt && module.id === workshopWeek ? "current" : !workshop.startedAt || module.id > workshopWeek ? "locked" : workshop.answers[module.id] || (workshop.missions[module.id] || []).some(Boolean) || Number.isInteger(workshop.challenges[module.id]?.selected) ? "progress" : ""}"><span>${workshop.completed[module.id] ? "✓" : module.icon}</span><div><small>${module.id}. HAFTA${workshop.startedAt ? ` • ${formatWorkshopSchedule(module.id, workshop)}` : ""}</small><strong>${module.title}</strong><p>${(workshop.missions[module.id] || []).filter(Boolean).length}/5 mini görev • ${Number.isInteger(workshop.challenges[module.id]?.selected) ? "karar tamam" : "karar bekliyor"}${workshop.answers[module.id] ? ` • ${Object.values(workshop.answers[module.id].values || {}).filter(value => String(value || "").trim()).length} cevap` : ""}</p></div></div>`).join("")}</div>${workshopAnswers.length ? `<div class="answer-accordion workshop-answer-accordion">${workshopAnswers.map(([id, record]) => {
         const module = WORKSHOP_MODULES.find(item => item.id === Number(id));
         if (!module) return "";
         const answers = module.fields.filter(field => record.values?.[field[0]]).map(field => `<div><small>${field[1]}</small><p>${escapeHTML(record.values[field[0]])}</p></div>`).join("");
@@ -3738,6 +3883,8 @@ document.addEventListener("click", event => {
   else if (action === "open-workshop-module") navigate("workshop", { workshopModuleId: Number(actionButton.dataset.workshopModuleId) });
   else if (action === "back-workshop") navigate("workshop");
   else if (action === "workshop-quiz-option") handleWorkshopQuiz(Number(actionButton.dataset.workshopModuleId), Number(actionButton.dataset.optionIndex));
+  else if (action === "workshop-challenge-option") handleWorkshopChallenge(Number(actionButton.dataset.workshopModuleId), Number(actionButton.dataset.optionIndex));
+  else if (action === "toggle-workshop-mission") toggleWorkshopMission(Number(actionButton.dataset.workshopModuleId), Number(actionButton.dataset.missionIndex));
   else if (action === "save-workshop-draft") {
     const form = document.querySelector("#workshop-module-form");
     if (saveWorkshopDraft(form)) {
